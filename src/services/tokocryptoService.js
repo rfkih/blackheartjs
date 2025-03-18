@@ -6,10 +6,6 @@ const tokocryptoService = require("../services/tokocryptoService");
 
 exports.getAsset = async (asset, recvWindow, apiKey , apiSecret) => {
     try {
-        console.log(asset)
-        console.log(recvWindow)
-        console.log(apiKey)
-        console.log(apiSecret)
         const timestamp = Date.now();
         const queryString = `asset=${asset}&timestamp=${timestamp}&recvWindow=${recvWindow}`;
         const signature = generateSignature(queryString, apiSecret);
@@ -45,10 +41,11 @@ exports.placeMarketOrder = async (symbol, side, amount, isQuoteQty, apiKey, apiS
 
         // Generate HMAC SHA256 Signature
         const queryString = new URLSearchParams(params).toString();
-        const signature = crypto
-            .createHmac("sha256", apiSecret)
-            .update(queryString)
-            .digest("hex");
+        const signature =  generateSignature(queryString, apiSecret);
+        //  crypto
+        //     .createHmac("sha256", apiSecret)
+        //     .update(queryString)
+        //     .digest("hex");
 
         params.signature = signature;
 
@@ -72,8 +69,7 @@ exports.placeMarketOrder = async (symbol, side, amount, isQuoteQty, apiKey, apiS
  */
 exports.orderDetail = async (orderId, clientId, recvWindow, apiKey, apiSecret) => {
     try {
-        // const apiKey = process.env.API_KEY;
-        // const apiSecret = process.env.API_SECRET;
+    
         const timestamp = Date.now();
 
         // Build query parameters
