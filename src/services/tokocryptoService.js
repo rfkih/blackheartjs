@@ -29,7 +29,8 @@ exports.placeMarketOrder = async (symbol, side, amount, isQuoteQty, apiKey, apiS
             symbol,
             side,  // 0 = Buy, 1 = Sell
             type: 2,  // 2 = Market Order
-            timestamp
+            timestamp,
+            newOrderRespType: "FULL" // FULL RESPONSE TYPE
         };
 
         // Use `quantity` for SELL orders, and `quoteOrderQty` for BUY orders
@@ -42,10 +43,6 @@ exports.placeMarketOrder = async (symbol, side, amount, isQuoteQty, apiKey, apiS
         // Generate HMAC SHA256 Signature
         const queryString = new URLSearchParams(params).toString();
         const signature =  generateSignature(queryString, apiSecret);
-        //  crypto
-        //     .createHmac("sha256", apiSecret)
-        //     .update(queryString)
-        //     .digest("hex");
 
         params.signature = signature;
 

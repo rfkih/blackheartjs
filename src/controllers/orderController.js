@@ -3,6 +3,7 @@ const binanceService = require("../services/binanceService");
 
 exports.placeMarketOrder = async (req, res) => {
     try {
+        console.log("request masuk")
         const { symbol, side, amount, isQuoteQty, apiKey, apiSecret } = req.body;
 
         // Validate input
@@ -12,6 +13,7 @@ exports.placeMarketOrder = async (req, res) => {
 
         const orderResponse = await tokocryptoService.placeMarketOrder(symbol, side, amount, isQuoteQty, apiKey, apiSecret);
         res.json(orderResponse);
+        console.log(orderResponse)
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

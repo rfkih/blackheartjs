@@ -6,4 +6,4 @@ const assetController = require("../controllers/assetController");
 router.get("/get-asset", assetController.getAsset);
 router.post("/get-asset-binance", assetController.getAssetBinance);
 
-module.exports = router;  // ✅ Ensure only the router is exported
+module.exports = router;  
