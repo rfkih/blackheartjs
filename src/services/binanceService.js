@@ -2,9 +2,19 @@ const axios = require("axios");
 const { generateSignature } = require("../utils/hmac");
 const BASE_URL = "https://api.binance.com";
 
+
+async function getServerTimeOffset() {
+  const res = await axios.get(`${BASE_URL}/api/v3/time`);
+  const serverTime = res.data.serverTime;
+  const localTime = Date.now();
+  return serverTime - localTime;
+}
+
 exports.getAsset = async (recvWindow, apiKey, apiSecret) => {
     try {
-        const timestamp = Date.now();
+        const offset = await getServerTimeOffset();
+        const timestamp = Date.now() + offset;
+
         const queryString = `timestamp=${timestamp}&recvWindow=${recvWindow}`;
         const signature = generateSignature(queryString, apiSecret);
         const url = `${BASE_URL}/sapi/v3/asset/getUserAsset?${queryString}&signature=${signature}`;
@@ -14,7 +24,7 @@ exports.getAsset = async (recvWindow, apiKey, apiSecret) => {
             "Content-Type": "application/json"
         };
 
-        const response = await axios.post(url, { asset: "USDT" }, { headers }); // replace USDT with dynamic asset if needed
+        const response = await axios.post(url, { asset: "USDT" }, { headers });
         return response.data;
     } catch (error) {
         console.log("error : " + error.message)
@@ -22,38 +32,50 @@ exports.getAsset = async (recvWindow, apiKey, apiSecret) => {
     }
 };
 
+
 exports.placeMarketOrder = async (symbol, side, amount, apiKey, apiSecret) => {
     try {
-        const timestamp = Date.now();
-
         const params = {
-            symbol,
-            side, // BUY or SELL
+            symbol: String(symbol).toUpperCase().trim(),
+            side: String(side).toUpperCase().trim(),
             type: "MARKET",
-            timestamp
+            recvWindow: 5000,
+            timestamp: Date.now()
         };
 
-        if (side === 'BUY') {
-            params.quoteOrderQty = amount; // USDT for BUY
-         } else if (side === 'SELL') {
-            params.quantity = amount; // BTC for SELL
-         }
-         
+        if (params.side === "BUY") {
+            params.quoteOrderQty = amount;
+        } else if (params.side === "SELL") {
+            params.quantity = amount;
+        } else {
+            throw new Error("side must be BUY or SELL");
+        }
+
+        const cleanApiKey = String(apiKey).trim();
+        const cleanApiSecret = String(apiSecret).trim();
 
         const queryString = new URLSearchParams(params).toString();
-        const signature = generateSignature(queryString, apiSecret);
+        const signature = generateSignature(queryString, cleanApiSecret);
 
-        const url = `${BASE_URL}/api/v3/order`;
+    
 
-        const headers = {
-            "X-MBX-APIKEY": apiKey
-        };
+        const response = await axios.post(
+            `${BASE_URL}/api/v3/order?${queryString}&signature=${signature}`,
+            null,
+            {
+                headers: {
+                    "X-MBX-APIKEY": cleanApiKey
+                }
+            }
+        );
 
-        const response = await axios.post(`${url}?${queryString}&signature=${signature}`, null, { headers });
+        console.log("response : " + response.data)
 
         return response.data;
     } catch (error) {
-        throw new Error(error.response ? error.response.data.msg : error.message);
+        console.log("status:", error.response?.status);
+        console.log("data:", error.response?.data);
+        throw new Error(error.response?.data?.msg || error.message);
     }
 };
 

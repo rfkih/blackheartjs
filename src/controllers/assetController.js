@@ -19,6 +19,7 @@ exports.getAsset = async (req, res) => {
 
 exports.getAssetBinance = async (req, res) => {
     try {
+        console.log("start Get asset")
         const { apiKey, apiSecret, recvWindow = 5000 } = req.body;
 
         if (!apiKey || !apiSecret) {
@@ -26,10 +27,12 @@ exports.getAssetBinance = async (req, res) => {
         }
 
         const data = await binanceService.getAsset(recvWindow, apiKey, apiSecret);
+        console.log("data : " + data)
         res.json(data);
     } catch (error) {
+        console.log("error :" +error)
         res.status(500).json({ error: error.message });
     }
 };
 
-
+ 

@@ -35,7 +35,7 @@ app.get('/get-asset', async (req, res) => {
 
 
         const response = await axios.get(finalUrl, { headers });
-
+        
         res.json(response.body);
     } catch (error) {
         console.error("❌ Error calling API:", error.response ? error.response.data : error.message);

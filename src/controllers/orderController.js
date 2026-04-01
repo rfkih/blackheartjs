@@ -44,12 +44,17 @@ exports.placeMarketOrderBinance = async (req, res) => {
     try {
         const { symbol, side, amount, apiKey, apiSecret } = req.body;
 
+        console.log("request start  " + req.body)
+
         // Validate input
         if (!symbol || !side || !amount || !apiKey || !apiSecret) {
             return res.status(400).json({ error: "Missing required parameters: symbol, side, amount, apiKey, apiSecret" });
         }
+        console.log("request complete")
 
         const orderResponse = await binanceService.placeMarketOrder(symbol, side, amount, apiKey, apiSecret);
+
+        console.log("orderResponse:", JSON.stringify(orderResponse, null, 2));
         res.json(orderResponse);
     } catch (error) {
         res.status(500).json({ error: error.message });
