@@ -1,80 +1,50 @@
 const tokocryptoService = require("../services/tokocryptoService");
 const binanceService = require("../services/binanceService");
 
-exports.placeMarketOrder = async (req, res) => {
-    try {
-        console.log("request masuk")
-        const { symbol, side, amount, isQuoteQty, apiKey, apiSecret } = req.body;
-
-        // Validate input
-        if (!symbol || side === undefined || !amount) {
-            return res.status(400).json({ error: "Missing required parameters: symbol, side, amount" });
-        }
-
-        const orderResponse = await tokocryptoService.placeMarketOrder(symbol, side, amount, isQuoteQty, apiKey, apiSecret);
-        res.json(orderResponse);
-        console.log(orderResponse)
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+exports.placeMarketOrder = async (req, res, next) => {
+  try {
+    const { symbol, side, amount, isQuoteQty, recvWindow, apiKey, apiSecret } = req.body;
+    const data = await tokocryptoService.placeMarketOrder({
+      symbol, side, amount, isQuoteQty, recvWindow, apiKey, apiSecret,
+    });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
 };
 
-/**
- * Endpoint to query order details
- */
-exports.orderDetail = async (req, res) => {
-    try {
-        const { orderId, clientId, recvWindow, apiKey, apiSecret } = req.body;
-
-        // Validate input
-        if (!orderId || !apiSecret) {
-            return res.status(400).json({ error: "Missing required parameters: symbol, side, amount" });
-        }
-
-        const orderResponse = await tokocryptoService.orderDetail(orderId, clientId, recvWindow, apiKey, apiSecret);
-        res.json(orderResponse);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+exports.orderDetail = async (req, res, next) => {
+  try {
+    const { orderId, clientId, recvWindow, apiKey, apiSecret } = req.body;
+    const data = await tokocryptoService.orderDetail({
+      orderId, clientId, recvWindow, apiKey, apiSecret,
+    });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
 };
 
-
-
-exports.placeMarketOrderBinance = async (req, res) => {
-    try {
-        const { symbol, side, amount, apiKey, apiSecret } = req.body;
-
-        console.log("request start  " + req.body)
-
-        // Validate input
-        if (!symbol || !side || !amount || !apiKey || !apiSecret) {
-            return res.status(400).json({ error: "Missing required parameters: symbol, side, amount, apiKey, apiSecret" });
-        }
-        console.log("request complete")
-
-        const orderResponse = await binanceService.placeMarketOrder(symbol, side, amount, apiKey, apiSecret);
-
-        console.log("orderResponse:", JSON.stringify(orderResponse, null, 2));
-        res.json(orderResponse);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+exports.placeMarketOrderBinance = async (req, res, next) => {
+  try {
+    const { symbol, side, amount, recvWindow, apiKey, apiSecret } = req.body;
+    const data = await binanceService.placeMarketOrder({
+      symbol, side, amount, recvWindow, apiKey, apiSecret,
+    });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
 };
 
-exports.orderDetailBinance = async (req, res) => {
-    try {
-        const { orderId, symbol, recvWindow = 5000, apiKey, apiSecret } = req.body;
-
-        if (!orderId || !symbol || !apiKey || !apiSecret) {
-            return res.status(400).json({ error: "Missing required parameters: orderId, symbol, apiKey, apiSecret" });
-        }
-
-        const orderResponse = await binanceService.orderDetail(orderId, symbol, recvWindow, apiKey, apiSecret);
-        res.json(orderResponse);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+exports.orderDetailBinance = async (req, res, next) => {
+  try {
+    const { orderId, symbol, recvWindow, apiKey, apiSecret } = req.body;
+    const data = await binanceService.orderDetail({
+      orderId, symbol, recvWindow, apiKey, apiSecret,
+    });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
 };
-
-
-

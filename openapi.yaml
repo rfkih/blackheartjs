@@ -1,0 +1,130 @@
+openapi: 3.0.3
+info:
+  title: blackheartjs
+  version: 1.0.0
+  description: >
+    HTTP pass-through for Tokocrypto and Binance spot APIs. Each request
+    carries its own exchange `apiKey`/`apiSecret` in the query string (GET) or
+    JSON body (POST). No service-level authentication.
+servers:
+  - url: http://localhost:8088
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+            requestId: { type: string }
+            details: {}
+paths:
+  /healthz:
+    get:
+      summary: Liveness probe
+      responses: { "200": { description: OK } }
+  /readyz:
+    get:
+      summary: Readiness probe
+      responses: { "200": { description: Ready } }
+  /api/get-asset:
+    get:
+      summary: Tokocrypto spot asset lookup
+      parameters:
+        - { in: query, name: asset, schema: { type: string, default: IDR } }
+        - { in: query, name: recvWindow, schema: { type: integer, default: 5000 } }
+        - { in: query, name: apiKey, required: true, schema: { type: string } }
+        - { in: query, name: apiSecret, required: true, schema: { type: string } }
+      responses:
+        "200": { description: OK }
+        "400": { description: Validation error }
+        "502": { description: Upstream error }
+  /api/place-market-order:
+    post:
+      summary: Tokocrypto market order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symbol, side, amount, apiKey, apiSecret]
+              properties:
+                symbol: { type: string }
+                side: { type: integer, enum: [0, 1], description: "0=BUY, 1=SELL" }
+                amount: { type: string }
+                isQuoteQty: { type: boolean, default: false }
+                recvWindow: { type: integer, default: 5000 }
+                apiKey: { type: string }
+                apiSecret: { type: string }
+      responses: { "200": { description: OK } }
+  /api/order-detail:
+    post:
+      summary: Tokocrypto order detail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderId, apiKey, apiSecret]
+              properties:
+                orderId: { type: string }
+                clientId: { type: string }
+                recvWindow: { type: integer, default: 5000 }
+                apiKey: { type: string }
+                apiSecret: { type: string }
+      responses: { "200": { description: OK } }
+  /api/get-asset-binance:
+    post:
+      summary: Binance spot asset lookup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [apiKey, apiSecret]
+              properties:
+                asset: { type: string }
+                recvWindow: { type: integer, default: 5000 }
+                apiKey: { type: string }
+                apiSecret: { type: string }
+      responses: { "200": { description: OK } }
+  /api/place-market-order-binance:
+    post:
+      summary: Binance market order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symbol, side, amount, apiKey, apiSecret]
+              properties:
+                symbol: { type: string }
+                side: { type: string, enum: [BUY, SELL] }
+                amount: { type: string }
+                recvWindow: { type: integer, default: 5000 }
+                apiKey: { type: string }
+                apiSecret: { type: string }
+      responses: { "200": { description: OK } }
+  /api/order-detail-binance:
+    post:
+      summary: Binance order detail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [orderId, symbol, apiKey, apiSecret]
+              properties:
+                orderId: { type: string }
+                symbol: { type: string }
+                recvWindow: { type: integer, default: 5000 }
+                apiKey: { type: string }
+                apiSecret: { type: string }
+      responses: { "200": { description: OK } }

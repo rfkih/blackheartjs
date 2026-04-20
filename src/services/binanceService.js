@@ -1,104 +1,85 @@
-const axios = require("axios");
 const { generateSignature } = require("../utils/hmac");
-const BASE_URL = "https://api.binance.com";
+const { createClient, handleResponse } = require("./httpClient");
+const { BINANCE_BASE_URL } = require("../config/env");
 
+const client = createClient(BINANCE_BASE_URL);
+const UPSTREAM = "binance";
+
+// Cached server-time offset. Binance rejects requests outside recvWindow, so
+// we sync once per process and refresh opportunistically.
+let cachedOffset = 0;
+let lastSyncAt = 0;
+const OFFSET_TTL_MS = 60_000;
 
 async function getServerTimeOffset() {
-  const res = await axios.get(`${BASE_URL}/api/v3/time`);
-  const serverTime = res.data.serverTime;
-  const localTime = Date.now();
-  return serverTime - localTime;
+  const now = Date.now();
+  if (now - lastSyncAt < OFFSET_TTL_MS) return cachedOffset;
+  const res = await client.get("/api/v3/time");
+  const data = handleResponse(res, { upstream: UPSTREAM });
+  cachedOffset = data.serverTime - Date.now();
+  lastSyncAt = Date.now();
+  return cachedOffset;
 }
 
-exports.getAsset = async (recvWindow, apiKey, apiSecret) => {
-    try {
-        const offset = await getServerTimeOffset();
-        const timestamp = Date.now() + offset;
+async function signedTimestamp() {
+  return Date.now() + (await getServerTimeOffset());
+}
 
-        const queryString = `timestamp=${timestamp}&recvWindow=${recvWindow}`;
-        const signature = generateSignature(queryString, apiSecret);
-        const url = `${BASE_URL}/sapi/v3/asset/getUserAsset?${queryString}&signature=${signature}`;
+function signedQuery(params, apiSecret) {
+  const qs = new URLSearchParams(params).toString();
+  const signature = generateSignature(qs, apiSecret);
+  return `${qs}&signature=${signature}`;
+}
 
-        const headers = {
-            "X-MBX-APIKEY": apiKey,
-            "Content-Type": "application/json"
-        };
+async function getAsset({ asset, recvWindow, apiKey, apiSecret }) {
+  const params = { timestamp: await signedTimestamp(), recvWindow };
+  if (asset) params.asset = asset;
 
-        const response = await axios.post(url, { asset: "USDT" }, { headers });
-        return response.data;
-    } catch (error) {
-        console.log("error : " + error.message)
-        throw new Error(error.response ? error.response.data.msg : error.message);
-    }
-};
+  // Binance signs the exact body/query it receives. For this SAPI endpoint
+  // the payload goes on the query string — no JSON body.
+  const qs = signedQuery(params, apiSecret);
+  const res = await client.post(`/sapi/v3/asset/getUserAsset?${qs}`, null, {
+    headers: { "X-MBX-APIKEY": apiKey },
+  });
+  return handleResponse(res, { upstream: UPSTREAM });
+}
 
+async function placeMarketOrder({ symbol, side, amount, apiKey, apiSecret, recvWindow }) {
+  const normalizedSide = String(side).toUpperCase().trim();
+  if (normalizedSide !== "BUY" && normalizedSide !== "SELL") {
+    const { ValidationError } = require("../errors/AppError");
+    throw new ValidationError([{ path: ["body", "side"], message: "must be BUY or SELL" }]);
+  }
 
-exports.placeMarketOrder = async (symbol, side, amount, apiKey, apiSecret) => {
-    try {
-        const params = {
-            symbol: String(symbol).toUpperCase().trim(),
-            side: String(side).toUpperCase().trim(),
-            type: "MARKET",
-            recvWindow: 5000,
-            timestamp: Date.now()
-        };
+  const params = {
+    symbol: String(symbol).toUpperCase().trim(),
+    side: normalizedSide,
+    type: "MARKET",
+    recvWindow,
+    timestamp: await signedTimestamp(),
+  };
+  if (normalizedSide === "BUY") params.quoteOrderQty = amount;
+  else params.quantity = amount;
 
-        if (params.side === "BUY") {
-            params.quoteOrderQty = amount;
-        } else if (params.side === "SELL") {
-            params.quantity = amount;
-        } else {
-            throw new Error("side must be BUY or SELL");
-        }
+  const qs = signedQuery(params, apiSecret);
+  const res = await client.post(`/api/v3/order?${qs}`, null, {
+    headers: { "X-MBX-APIKEY": apiKey },
+  });
+  return handleResponse(res, { upstream: UPSTREAM });
+}
 
-        const cleanApiKey = String(apiKey).trim();
-        const cleanApiSecret = String(apiSecret).trim();
+async function orderDetail({ orderId, symbol, recvWindow, apiKey, apiSecret }) {
+  const params = {
+    orderId,
+    symbol: String(symbol).toUpperCase().trim(),
+    timestamp: await signedTimestamp(),
+    recvWindow,
+  };
+  const qs = signedQuery(params, apiSecret);
+  const res = await client.get(`/api/v3/order?${qs}`, {
+    headers: { "X-MBX-APIKEY": apiKey },
+  });
+  return handleResponse(res, { upstream: UPSTREAM });
+}
 
-        const queryString = new URLSearchParams(params).toString();
-        const signature = generateSignature(queryString, cleanApiSecret);
-
-    
-
-        const response = await axios.post(
-            `${BASE_URL}/api/v3/order?${queryString}&signature=${signature}`,
-            null,
-            {
-                headers: {
-                    "X-MBX-APIKEY": cleanApiKey
-                }
-            }
-        );
-
-        console.log("response : " + response.data)
-
-        return response.data;
-    } catch (error) {
-        console.log("status:", error.response?.status);
-        console.log("data:", error.response?.data);
-        throw new Error(error.response?.data?.msg || error.message);
-    }
-};
-
-exports.orderDetail = async (orderId, symbol, recvWindow, apiKey, apiSecret) => {
-    try {
-        const timestamp = Date.now();
-
-        // Include symbol in the params!
-        const params = `orderId=${orderId}&symbol=${symbol}&timestamp=${timestamp}&recvWindow=${recvWindow}`;
-        const signature = generateSignature(params, apiSecret);
-
-        const url = `${BASE_URL}/api/v3/order?${params}&signature=${signature}`;
-
-        const headers = {
-            "X-MBX-APIKEY": apiKey,
-            "Content-Type": "application/json",
-        };
-
-        const response = await axios.get(url, { headers });
-        return response.data;
-    } catch (error) {
-        console.error("❌ Error fetching order details:", error.response ? error.response.data : error.message);
-        return { error: error.response ? error.response.data : error.message };
-    }
-};
-
+module.exports = { getAsset, placeMarketOrder, orderDetail };

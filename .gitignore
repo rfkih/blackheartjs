@@ -34,3 +34,6 @@ bower_components/
 
 # Ignore package-lock and yarn.lock (optional, but useful in monorepos)
 yarn.lock
+
+# Coverage
+coverage/

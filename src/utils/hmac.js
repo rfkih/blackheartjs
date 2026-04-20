@@ -1,8 +1,7 @@
-const crypto = require("crypto");
+const { createHmac } = require("crypto");
 
-exports.generateSignature = (queryString, secretKey) => {
-    return crypto
-        .createHmac("sha256", secretKey)
-        .update(queryString)
-        .digest("hex");
-};
+function generateSignature(queryString, secretKey) {
+  return createHmac("sha256", secretKey).update(queryString).digest("hex");
+}
+
+module.exports = { generateSignature };
