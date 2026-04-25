@@ -8,14 +8,12 @@ function createClient(baseURL) {
   const client = axios.create({
     baseURL,
     timeout: HTTP_TIMEOUT_MS,
-    // Always pass through status so we can translate errors ourselves.
     validateStatus: () => true,
   });
 
   axiosRetry(client, {
     retries: HTTP_MAX_RETRIES,
     retryDelay: axiosRetry.exponentialDelay,
-    // Idempotent-only retry plus 429/5xx on any method for upstream quota blips.
     retryCondition: (error) => {
       if (axiosRetry.isNetworkOrIdempotentRequestError(error)) return true;
       const status = error.response?.status;

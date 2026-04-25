@@ -8,7 +8,6 @@ router.get("/healthz", (_req, res) => {
 });
 
 router.get("/readyz", (_req, res) => {
-  // No external dependencies required at startup; the service is stateless.
   res.json({ status: "ready" });
 });
 
