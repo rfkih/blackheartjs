@@ -1,10 +1,13 @@
 const app = require("./src/app");
 const { PORT } = require("./src/config/env");
 const logger = require("./src/logger");
+const { attachWsProxy } = require("./src/ws/binanceWsProxy");
 
 const server = app.listen(PORT, () => {
   logger.info({ port: PORT }, "server listening");
 });
+
+attachWsProxy(server);
 
 server.keepAliveTimeout = 65_000;
 server.headersTimeout = 66_000;

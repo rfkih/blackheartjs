@@ -16,6 +16,7 @@
     "node": ">=20.11"
   },
   "dependencies": {
+    "ws": "^8.18.0",
     "axios": "^1.8.2",
     "axios-retry": "^4.5.0",
     "cors": "^2.8.5",
