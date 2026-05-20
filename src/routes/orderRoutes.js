@@ -6,6 +6,9 @@ const {
   tokocryptoOrderDetailBody,
   binancePlaceOrderBody,
   binanceOrderDetailBody,
+  binancePlaceLimitOrderBody,
+  binanceCancelOrderBody,
+  binanceOpenOrdersBody,
 } = require("../schemas");
 
 const router = express.Router();
@@ -32,6 +35,24 @@ router.post(
   "/order-detail-binance",
   validate({ body: binanceOrderDetailBody }),
   orderController.orderDetailBinance,
+);
+
+router.post(
+  "/place-limit-order-binance",
+  validate({ body: binancePlaceLimitOrderBody }),
+  orderController.placeLimitOrderBinance,
+);
+
+router.post(
+  "/cancel-order-binance",
+  validate({ body: binanceCancelOrderBody }),
+  orderController.cancelOrderBinance,
+);
+
+router.post(
+  "/open-orders-binance",
+  validate({ body: binanceOpenOrdersBody }),
+  orderController.openOrdersBinance,
 );
 
 module.exports = router;

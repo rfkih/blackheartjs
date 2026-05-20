@@ -128,3 +128,73 @@ paths:
                 apiKey: { type: string }
                 apiSecret: { type: string }
       responses: { "200": { description: OK } }
+  /api/place-limit-order-binance:
+    post:
+      summary: Binance LIMIT (or LIMIT_MAKER) order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symbol, side, price, quantity, apiKey, apiSecret]
+              properties:
+                symbol: { type: string }
+                side: { type: string, enum: [BUY, SELL] }
+                price: { type: string }
+                quantity: { type: string }
+                timeInForce:
+                  type: string
+                  enum: [GTC, IOC, FOK]
+                  default: GTC
+                  description: Ignored when postOnly=true (LIMIT_MAKER rejects timeInForce)
+                postOnly:
+                  type: boolean
+                  default: false
+                  description: When true, upstream order type becomes LIMIT_MAKER
+                newClientOrderId: { type: string }
+                recvWindow: { type: integer, default: 5000 }
+                apiKey: { type: string }
+                apiSecret: { type: string }
+      responses:
+        "200": { description: OK }
+        "400": { description: Validation or upstream rejection (e.g. LIMIT_MAKER would cross) }
+  /api/cancel-order-binance:
+    post:
+      summary: Binance cancel order
+      description: At least one of orderId / origClientOrderId is required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symbol, apiKey, apiSecret]
+              properties:
+                symbol: { type: string }
+                orderId: { type: string }
+                origClientOrderId: { type: string }
+                recvWindow: { type: integer, default: 5000 }
+                apiKey: { type: string }
+                apiSecret: { type: string }
+      responses:
+        "200": { description: OK }
+        "400": { description: Validation error or order already closed/not found }
+  /api/open-orders-binance:
+    post:
+      summary: List Binance open orders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [apiKey, apiSecret]
+              properties:
+                symbol:
+                  type: string
+                  description: Omit to list across all symbols (upstream weight 40)
+                recvWindow: { type: integer, default: 5000 }
+                apiKey: { type: string }
+                apiSecret: { type: string }
+      responses: { "200": { description: OK } }

@@ -82,4 +82,74 @@ async function orderDetail({ orderId, symbol, recvWindow, apiKey, apiSecret }) {
   return handleResponse(res, { upstream: UPSTREAM });
 }
 
-module.exports = { getAsset, placeMarketOrder, orderDetail };
+async function placeLimitOrder({
+  symbol,
+  side,
+  price,
+  quantity,
+  timeInForce,
+  postOnly,
+  newClientOrderId,
+  apiKey,
+  apiSecret,
+  recvWindow,
+}) {
+  const normalizedSide = String(side).toUpperCase().trim();
+  if (normalizedSide !== "BUY" && normalizedSide !== "SELL") {
+    const { ValidationError } = require("../errors/AppError");
+    throw new ValidationError([{ path: ["body", "side"], message: "must be BUY or SELL" }]);
+  }
+
+  // LIMIT_MAKER cannot carry timeInForce; Binance rejects the combination.
+  // Plain LIMIT requires timeInForce; default GTC for caller convenience.
+  const type = postOnly ? "LIMIT_MAKER" : "LIMIT";
+  const params = {
+    symbol: String(symbol).toUpperCase().trim(),
+    side: normalizedSide,
+    type,
+    price,
+    quantity,
+    recvWindow,
+    timestamp: await signedTimestamp(),
+  };
+  if (type === "LIMIT") params.timeInForce = timeInForce || "GTC";
+  if (newClientOrderId) params.newClientOrderId = newClientOrderId;
+
+  const qs = signedQuery(params, apiSecret);
+  const res = await client.post(`/api/v3/order?${qs}`, null, {
+    headers: { "X-MBX-APIKEY": apiKey },
+  });
+  return handleResponse(res, { upstream: UPSTREAM });
+}
+
+async function cancelOrder({ symbol, orderId, origClientOrderId, apiKey, apiSecret, recvWindow }) {
+  const params = {
+    symbol: String(symbol).toUpperCase().trim(),
+    timestamp: await signedTimestamp(),
+    recvWindow,
+  };
+  if (orderId) params.orderId = orderId;
+  if (origClientOrderId) params.origClientOrderId = origClientOrderId;
+
+  const qs = signedQuery(params, apiSecret);
+  const res = await client.delete(`/api/v3/order?${qs}`, {
+    headers: { "X-MBX-APIKEY": apiKey },
+  });
+  return handleResponse(res, { upstream: UPSTREAM });
+}
+
+async function openOrders({ symbol, apiKey, apiSecret, recvWindow }) {
+  const params = {
+    timestamp: await signedTimestamp(),
+    recvWindow,
+  };
+  if (symbol) params.symbol = String(symbol).toUpperCase().trim();
+
+  const qs = signedQuery(params, apiSecret);
+  const res = await client.get(`/api/v3/openOrders?${qs}`, {
+    headers: { "X-MBX-APIKEY": apiKey },
+  });
+  return handleResponse(res, { upstream: UPSTREAM });
+}
+
+module.exports = { getAsset, placeMarketOrder, orderDetail, placeLimitOrder, cancelOrder, openOrders };

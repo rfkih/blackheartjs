@@ -1,5 +1,5 @@
 {
-  "name": "blackheartjs",
+  "name": "blackheart-exchange-gateway",
   "version": "1.0.0",
   "description": "HTTP pass-through service for Tokocrypto and Binance spot trading APIs",
   "main": "server.js",

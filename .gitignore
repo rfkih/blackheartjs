@@ -13,6 +13,7 @@ yarn-error.log*
 .env.local
 .env.development
 .env.test
+.env.testnet
 .env.production
 
 # Ignore build directories

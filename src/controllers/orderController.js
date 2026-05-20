@@ -48,3 +48,43 @@ exports.orderDetailBinance = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.placeLimitOrderBinance = async (req, res, next) => {
+  try {
+    const {
+      symbol, side, price, quantity, timeInForce, postOnly,
+      newClientOrderId, recvWindow, apiKey, apiSecret,
+    } = req.body;
+    const data = await binanceService.placeLimitOrder({
+      symbol, side, price, quantity, timeInForce, postOnly,
+      newClientOrderId, recvWindow, apiKey, apiSecret,
+    });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.cancelOrderBinance = async (req, res, next) => {
+  try {
+    const { symbol, orderId, origClientOrderId, recvWindow, apiKey, apiSecret } = req.body;
+    const data = await binanceService.cancelOrder({
+      symbol, orderId, origClientOrderId, recvWindow, apiKey, apiSecret,
+    });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.openOrdersBinance = async (req, res, next) => {
+  try {
+    const { symbol, recvWindow, apiKey, apiSecret } = req.body;
+    const data = await binanceService.openOrders({
+      symbol, recvWindow, apiKey, apiSecret,
+    });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};

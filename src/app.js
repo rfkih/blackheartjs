@@ -9,7 +9,6 @@ const {
   CORS_ORIGINS,
   RATE_LIMIT_WINDOW_MS,
   RATE_LIMIT_MAX,
-  isProd,
 } = require("./config/env");
 
 const requestId = require("./middleware/requestId");
@@ -22,7 +21,7 @@ const healthRoutes = require("./routes/healthRoutes");
 const app = express();
 
 app.disable("x-powered-by");
-app.set("trust proxy", isProd ? 1 : false);
+app.set("trust proxy", 1);
 
 app.use(requestId);
 app.use(
