@@ -1,0 +1,115 @@
+# Blackheart exchange gateway — systemd unit (Linux production reference).
+#
+# Stateless HTTP/WS pass-through to Binance + Tokocrypto. The trading JVM
+# (port 8080) calls this service for exchange interactions, so it IS in the
+# live-trading hot path even though it holds no state itself. Treat outage
+# as a trading outage: if the gateway is down, the JVM cannot place orders.
+#
+# Layout convention (mirrors the trading JVM's symlink-swap pattern):
+#
+#   /opt/blackheart-gateway/
+#     releases/
+#       <sha>/             # one directory per deployed commit
+#         server.js
+#         src/
+#         node_modules/    # `npm ci` ran on the host during deploy
+#         package.json
+#     current -> releases/<sha>   # atomic symlink — this is what swaps
+#     logs/
+#
+# Install:
+#   sudo cp deploy/systemd/blackheart-gateway.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable blackheart-gateway
+#   sudo systemctl start blackheart-gateway
+#
+# Verify:
+#   sudo systemctl status blackheart-gateway
+#   journalctl -u blackheart-gateway -f
+#   curl -fsS http://localhost:8088/healthcheck   # adjust if route differs
+#
+# Update binary (assumes new release staged at /opt/blackheart-gateway/releases/<new-sha>/):
+#   sudo systemctl stop blackheart-gateway
+#   sudo ln -sfn /opt/blackheart-gateway/releases/<new-sha> /opt/blackheart-gateway/current
+#   sudo systemctl start blackheart-gateway
+#
+# DO NOT use `systemctl restart` for code upgrades — restart kills and relaunches
+# in one step; if the new release fails to boot, the old process is already gone.
+# Stop, swap symlink, start — same discipline as the trading JVM.
+
+[Unit]
+Description=Blackheart exchange gateway (Binance + Tokocrypto HTTP/WS pass-through)
+After=network-online.target
+Wants=network-online.target
+# Soft dependency: gateway can start without the JVM, and vice versa. Coupling
+# them here would just amplify a single failure into a cascading one.
+
+[Service]
+Type=simple
+User=blackheart-gateway
+Group=blackheart-gateway
+WorkingDirectory=/opt/blackheart-gateway/current
+
+# Node memory cap. Gateway is light — 512MB is generous for an HTTP+WS proxy.
+# --enable-source-maps so stack traces in journal point at original source.
+Environment=NODE_OPTIONS=--max-old-space-size=512 --enable-source-maps
+Environment=NODE_ENV=production
+
+# Upstream URLs, CORS origins, rate limits, exchange keys. Mode 600, owned
+# root, NOT in version control. See deploy/scripts/gateway.env.example for keys.
+EnvironmentFile=/etc/blackheart/gateway.env
+
+ExecStart=/usr/bin/node /opt/blackheart-gateway/current/server.js
+
+# ── Resource isolation ────────────────────────────────────────────────────
+# Lighter caps than the trading JVM — this is a stateless proxy.
+CPUQuota=100%
+MemoryMax=768M
+TasksMax=256
+
+# IO priority: best-effort, slightly elevated. The trading JVM owns the
+# realtime lane; the gateway shouldn't compete with it for that class.
+IOSchedulingClass=best-effort
+IOSchedulingPriority=3
+
+# Nice -3 = slightly above normal, below trading JVM's -5. Keeps event-loop
+# latency low without preempting the JVM under load.
+Nice=-3
+
+# ── Lifecycle policy ──────────────────────────────────────────────────────
+# More forgiving than trading: gateway is stateless, so a fresh restart is
+# safe. But still cap bursts — runaway restart loops eat upstream API budget
+# (Binance rate-limits reconnects).
+Restart=on-failure
+RestartSec=5
+StartLimitBurst=5
+StartLimitIntervalSec=300
+
+# Graceful shutdown. server.js has a 10s in-process timer (server.js:17-21).
+# Give systemd 15s before SIGKILL so the app's own timer fires first.
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=15
+
+# ── Hardening ─────────────────────────────────────────────────────────────
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/blackheart-gateway/logs
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictRealtime=true   # gateway never needs realtime scheduling
+
+# ── Standard output ───────────────────────────────────────────────────────
+# pino logs go to stdout as JSON; journald captures them. Use `journalctl
+# -u blackheart-gateway -o cat | pino-pretty` for readable tailing.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=blackheart-gateway
+
+[Install]
+WantedBy=multi-user.target
