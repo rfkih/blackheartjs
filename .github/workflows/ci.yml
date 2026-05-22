@@ -4,6 +4,24 @@ on:
   push:
     branches: [master, main]
   pull_request:
+  workflow_dispatch:
+
+# Least-privilege at the workflow level. Individual jobs cannot escalate beyond this.
+# - contents: write       — deploy job pushes the deploy/prod/<sha> tag.
+# - actions: read         — for downloading build artifacts across jobs.
+# - deployments: write    — populates the Deployments tab in the production-vps environment.
+# - packages: write       — pushes container images to ghcr.io/<owner>/blackheartjs.
+permissions:
+  contents: write
+  actions: read
+  deployments: write
+  packages: write
+
+# Image-registry conventions. Single gateway image; owner lowercased from
+# github.repository_owner so ghcr.io accepts it (GHCR rejects mixed case).
+env:
+  REGISTRY: ghcr.io
+  IMAGE_GATEWAY: ${{ github.repository_owner }}/blackheartjs
 
 jobs:
   test:
@@ -33,3 +51,145 @@ jobs:
           context: .
           push: false
           tags: blackheartjs:ci
+
+  build-images:
+    name: Build + push GHCR image
+    needs: test
+    # Same gate as deploy: only build images on master pushes or manual dispatch.
+    # PR builds run tests + the `docker` job above but skip image push — PRs
+    # aren't deployable.
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      # Surface the image tag to the downstream deploy job so it doesn't have
+      # to recompute it. Pinned to the run's commit SHA — that's what ends up
+      # in /home/starsky/blackheart/.env on the VPS as GATEWAY_TAG.
+      sha_tag: ${{ steps.tag.outputs.sha_tag }}
+    steps:
+      # Actions are pinned to commit SHAs (supply-chain hardening). SHAs copied
+      # verbatim from blackheart-trading-engine/.github/workflows/ci.yml — keep
+      # them in lockstep when bumping.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Compute tag (short SHA)
+        id: tag
+        run: echo "sha_tag=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db # v3.6.1
+
+      - name: Log in to GHCR
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build + push gateway image
+        # Two tags pushed: the immutable SHA tag (what the VPS pins to via
+        # GATEWAY_TAG in /home/starsky/blackheart/.env) and `latest` (operator
+        # escape hatch — never used by CI deploys, but handy for `docker pull`).
+        uses: docker/build-push-action@5cd11c3a4ced054e52742c5fd54dca954e0edd85 # v6.7.0
+        with:
+          context: .
+          file: ./Dockerfile
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_GATEWAY }}:${{ steps.tag.outputs.sha_tag }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_GATEWAY }}:latest
+          push: true
+          cache-from: type=gha,scope=gateway
+          cache-to: type=gha,scope=gateway,mode=max
+
+  deploy:
+    name: Deploy gateway to VPS (docker)
+    needs: build-images
+    if: vars.DEPLOY_ENABLED == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production-vps
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Configure SSH
+        # `tr -d '[:space:]'` trims any stray CR/LF/whitespace from secrets —
+        # critical on Windows-edited secrets where invisible CRs corrupt
+        # hostnames. Mirrors the trading workflow.
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_HOST_RAW: ${{ secrets.VPS_HOST }}
+          SSH_USER_RAW: ${{ secrets.VPS_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          SSH_HOST=$(printf '%s' "$SSH_HOST_RAW" | tr -d '[:space:]')
+          SSH_USER=$(printf '%s' "$SSH_USER_RAW" | tr -d '[:space:]')
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          echo "SSH_HOST=${SSH_HOST}" >> "$GITHUB_ENV"
+          echo "SSH_USER=${SSH_USER}" >> "$GITHUB_ENV"
+
+      - name: Capture rollback tag
+        # docker inspect reads the currently-running container's image. Image
+        # ref shape: `ghcr.io/<owner>/blackheartjs:<sha>`. Split off the tag
+        # suffix and stash it for the rollback step. NONE = no prior deploy
+        # (first-ever run), in which case rollback is skipped.
+        run: |
+          PREV=$(ssh -i ~/.ssh/id_ed25519 "${SSH_USER}@${SSH_HOST}" "docker inspect blackheart-js --format '{{.Config.Image}}' 2>/dev/null | awk -F: '{print \$NF}' || echo NONE")
+          echo "PREV_TAG=${PREV:-NONE}" >> "$GITHUB_ENV"
+          echo "Previous gateway tag: ${PREV}"
+
+      - name: Pin new tag in /home/starsky/blackheart/.env
+        # The compose file reads ${GATEWAY_TAG:-latest}. Append/overwrite the
+        # GATEWAY_TAG line so `compose up -d` picks the SHA just built. `grep
+        # -v` + `>>` is the atomic-enough replace pattern that avoids needing
+        # sed -i across distros. Compose YAML itself is synced by the
+        # trading-engine workflow — gateway only touches its own tag line.
+        env:
+          NEW_TAG: ${{ needs.build-images.outputs.sha_tag }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 "${SSH_USER}@${SSH_HOST}" \
+            "set -e && touch /home/starsky/blackheart/.env && grep -v '^GATEWAY_TAG=' /home/starsky/blackheart/.env > /tmp/.env.new || true && echo 'GATEWAY_TAG=${NEW_TAG}' >> /tmp/.env.new && mv /tmp/.env.new /home/starsky/blackheart/.env"
+          echo "NEW_TAG=${NEW_TAG}" >> "$GITHUB_ENV"
+
+      - name: Pull + recreate gateway container
+        # `compose pull` is idempotent. `compose up -d gateway` recreates only
+        # the gateway container (trading + research keep running). No JVM
+        # disturbance.
+        run: |
+          ssh -i ~/.ssh/id_ed25519 "${SSH_USER}@${SSH_HOST}" \
+            "cd /home/starsky/blackheart && docker compose pull gateway && docker compose up -d gateway"
+
+      - name: Gateway healthcheck (with rollback on failure)
+        # 6 attempts × 10s = 60s. Node boot is fast (~1–3s); 60s is generous
+        # headroom for compose recreate + container start. On failure: re-pin
+        # PREV_TAG and bring up again. Gateway is never left broken.
+        run: |
+          set +e
+          ssh -i ~/.ssh/id_ed25519 "${SSH_USER}@${SSH_HOST}" \
+            'for i in $(seq 1 6); do curl -fsS http://127.0.0.1:8088/healthz >/dev/null && exit 0; sleep 10; done; exit 1'
+          HEALTH=$?
+          set -e
+          if [ "$HEALTH" -ne 0 ]; then
+            echo "::error::Gateway healthcheck failed. Rolling back to ${PREV_TAG}."
+            if [ "${PREV_TAG}" != "NONE" ]; then
+              ssh -i ~/.ssh/id_ed25519 "${SSH_USER}@${SSH_HOST}" \
+                "set -e && grep -v '^GATEWAY_TAG=' /home/starsky/blackheart/.env > /tmp/.env.rollback && echo 'GATEWAY_TAG=${PREV_TAG}' >> /tmp/.env.rollback && mv /tmp/.env.rollback /home/starsky/blackheart/.env && cd /home/starsky/blackheart && docker compose up -d gateway"
+            fi
+            exit 1
+          fi
+          echo "Gateway deploy ${NEW_TAG} healthy."
+
+      - name: Tag successful production deploy
+        # Lightweight git tag — searchable, no release notes overhead. Format:
+        # deploy/prod/<8-char-sha>. Reuse: `git fetch --tags && git checkout
+        # deploy/prod/<sha>`. Non-fatal on duplicate (e.g. re-dispatch of the
+        # same SHA).
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="deploy/prod/${GITHUB_SHA::8}"
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+            -f "ref=refs/tags/${TAG}" \
+            -f "sha=${GITHUB_SHA}" \
+            > /dev/null && echo "Tagged ${TAG}" || echo "::warning::Tag ${TAG} may already exist (non-fatal)"
