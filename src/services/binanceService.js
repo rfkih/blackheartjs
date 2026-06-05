@@ -152,4 +152,101 @@ async function openOrders({ symbol, apiKey, apiSecret, recvWindow }) {
   return handleResponse(res, { upstream: UPSTREAM });
 }
 
-module.exports = { getAsset, placeMarketOrder, orderDetail, placeLimitOrder, cancelOrder, openOrders };
+// --- Simple Earn (Flexible) ---------------------------------------------
+// Signed SAPI v1 endpoints. USDT is not "staked" (not a PoS asset); the
+// hedging cash leg parks idle USDT in a Flexible Simple-Earn product to earn
+// yield, redeemable on demand. Payload goes on the signed query string; the
+// POST endpoints carry no JSON body (Binance signs the exact query it receives).
+
+async function simpleEarnFlexibleList({ asset, productId, current, size, recvWindow, apiKey, apiSecret }) {
+  const params = { timestamp: await signedTimestamp(), recvWindow };
+  if (asset) params.asset = String(asset).toUpperCase().trim();
+  if (productId) params.productId = productId;
+  if (current) params.current = current;
+  if (size) params.size = size;
+
+  const qs = signedQuery(params, apiSecret);
+  const res = await client.get(`/sapi/v1/simple-earn/flexible/list?${qs}`, {
+    headers: { "X-MBX-APIKEY": apiKey },
+  });
+  return handleResponse(res, { upstream: UPSTREAM });
+}
+
+async function simpleEarnFlexibleSubscribe({ productId, amount, autoSubscribe, sourceAccount, recvWindow, apiKey, apiSecret }) {
+  const params = {
+    productId,
+    amount,
+    recvWindow,
+    timestamp: await signedTimestamp(),
+  };
+  if (autoSubscribe !== undefined) params.autoSubscribe = autoSubscribe;
+  if (sourceAccount) params.sourceAccount = sourceAccount;
+
+  const qs = signedQuery(params, apiSecret);
+  const res = await client.post(`/sapi/v1/simple-earn/flexible/subscribe?${qs}`, null, {
+    headers: { "X-MBX-APIKEY": apiKey },
+  });
+  return handleResponse(res, { upstream: UPSTREAM });
+}
+
+async function simpleEarnFlexibleRedeem({ productId, redeemAll, amount, destAccount, recvWindow, apiKey, apiSecret }) {
+  const params = {
+    productId,
+    recvWindow,
+    timestamp: await signedTimestamp(),
+  };
+  // Binance accepts redeemAll=true OR an explicit amount, not both meaningfully.
+  if (redeemAll === true) params.redeemAll = true;
+  else if (amount !== undefined) params.amount = amount;
+  if (destAccount) params.destAccount = destAccount;
+
+  const qs = signedQuery(params, apiSecret);
+  const res = await client.post(`/sapi/v1/simple-earn/flexible/redeem?${qs}`, null, {
+    headers: { "X-MBX-APIKEY": apiKey },
+  });
+  return handleResponse(res, { upstream: UPSTREAM });
+}
+
+async function simpleEarnFlexiblePosition({ asset, productId, current, size, recvWindow, apiKey, apiSecret }) {
+  const params = { timestamp: await signedTimestamp(), recvWindow };
+  if (asset) params.asset = String(asset).toUpperCase().trim();
+  if (productId) params.productId = productId;
+  if (current) params.current = current;
+  if (size) params.size = size;
+
+  const qs = signedQuery(params, apiSecret);
+  const res = await client.get(`/sapi/v1/simple-earn/flexible/position?${qs}`, {
+    headers: { "X-MBX-APIKEY": apiKey },
+  });
+  return handleResponse(res, { upstream: UPSTREAM });
+}
+
+async function simpleEarnFlexibleRewards({ type, asset, productId, startTime, endTime, current, size, recvWindow, apiKey, apiSecret }) {
+  const params = { type, timestamp: await signedTimestamp(), recvWindow };
+  if (asset) params.asset = String(asset).toUpperCase().trim();
+  if (productId) params.productId = productId;
+  if (startTime) params.startTime = startTime;
+  if (endTime) params.endTime = endTime;
+  if (current) params.current = current;
+  if (size) params.size = size;
+
+  const qs = signedQuery(params, apiSecret);
+  const res = await client.get(`/sapi/v1/simple-earn/flexible/history/rewardsRecord?${qs}`, {
+    headers: { "X-MBX-APIKEY": apiKey },
+  });
+  return handleResponse(res, { upstream: UPSTREAM });
+}
+
+module.exports = {
+  getAsset,
+  placeMarketOrder,
+  orderDetail,
+  placeLimitOrder,
+  cancelOrder,
+  openOrders,
+  simpleEarnFlexibleList,
+  simpleEarnFlexibleSubscribe,
+  simpleEarnFlexibleRedeem,
+  simpleEarnFlexiblePosition,
+  simpleEarnFlexibleRewards,
+};

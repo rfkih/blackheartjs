@@ -25,6 +25,12 @@ const schema = z.object({
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(60),
+
+  // Safety belt: the FUND-MOVING Simple Earn routes (subscribe/redeem) are
+  // disabled by default and return 403 until explicitly enabled. Read-only
+  // earn routes (list/position/rewards) are always available. Strict parse —
+  // only the literal "true" enables it (avoids the Boolean("false")===true trap).
+  SIMPLE_EARN_ENABLED: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
 });
 
 const parsed = schema.safeParse(process.env);

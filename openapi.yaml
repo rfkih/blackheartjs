@@ -198,3 +198,110 @@ paths:
                 apiKey: { type: string }
                 apiSecret: { type: string }
       responses: { "200": { description: OK } }
+  /api/earn/flexible/list:
+    post:
+      summary: List Binance Simple Earn (Flexible) products — resolve productId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [apiKey, apiSecret]
+              properties:
+                asset: { type: string, description: e.g. USDT; omit for all }
+                productId: { type: string }
+                current: { type: integer, description: page (1-based) }
+                size: { type: integer }
+                recvWindow: { type: integer, default: 5000 }
+                apiKey: { type: string }
+                apiSecret: { type: string }
+      responses: { "200": { description: OK } }
+  /api/earn/flexible/position:
+    post:
+      summary: Current Simple Earn (Flexible) position/balance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [apiKey, apiSecret]
+              properties:
+                asset: { type: string }
+                productId: { type: string }
+                current: { type: integer }
+                size: { type: integer }
+                recvWindow: { type: integer, default: 5000 }
+                apiKey: { type: string }
+                apiSecret: { type: string }
+      responses: { "200": { description: OK } }
+  /api/earn/flexible/rewards:
+    post:
+      summary: Realized Simple Earn (Flexible) interest history
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, apiKey, apiSecret]
+              properties:
+                type: { type: string, enum: [BONUS, REALTIME, REWARDS] }
+                asset: { type: string }
+                productId: { type: string }
+                startTime: { type: integer, description: epoch ms }
+                endTime: { type: integer, description: epoch ms }
+                current: { type: integer }
+                size: { type: integer }
+                recvWindow: { type: integer, default: 5000 }
+                apiKey: { type: string }
+                apiSecret: { type: string }
+      responses: { "200": { description: OK } }
+  /api/earn/flexible/subscribe:
+    post:
+      summary: >
+        Subscribe (park) idle quote into a Flexible Simple Earn product.
+        FUND-MOVING — gated behind SIMPLE_EARN_ENABLED; returns 403 when disabled.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId, amount, apiKey, apiSecret]
+              properties:
+                productId: { type: string }
+                amount: { type: string, description: positive number string }
+                autoSubscribe: { type: boolean, default: true }
+                sourceAccount: { type: string, enum: [SPOT, FUND, ALL] }
+                recvWindow: { type: integer, default: 5000 }
+                apiKey: { type: string }
+                apiSecret: { type: string }
+      responses:
+        "200": { description: OK }
+        "403": { description: SIMPLE_EARN_DISABLED, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+  /api/earn/flexible/redeem:
+    post:
+      summary: >
+        Redeem (free) quote from a Flexible Simple Earn product before buying.
+        FUND-MOVING — gated behind SIMPLE_EARN_ENABLED; returns 403 when disabled.
+        Provide redeemAll=true OR a positive amount.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [productId, apiKey, apiSecret]
+              properties:
+                productId: { type: string }
+                redeemAll: { type: boolean, default: false }
+                amount: { type: string, description: required unless redeemAll=true }
+                destAccount: { type: string, enum: [SPOT, FUND, ALL] }
+                recvWindow: { type: integer, default: 5000 }
+                apiKey: { type: string }
+                apiSecret: { type: string }
+      responses:
+        "200": { description: OK }
+        "403": { description: SIMPLE_EARN_DISABLED, content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }

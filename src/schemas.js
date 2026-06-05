@@ -158,6 +158,84 @@ const binanceOpenOrdersBody = z.object({
   apiSecret,
 });
 
+// --- Binance Simple Earn (Flexible) ---
+const optionalAsset = z.preprocess(
+  (v) => (v === null || v === "" ? undefined : v),
+  z.string().trim().min(1).max(20).optional(),
+);
+const productId = z.string().trim().min(1).max(64);
+const optionalProductId = z.preprocess(nullToUndefined, productId.optional());
+const optionalPage = z.preprocess(nullToUndefined, z.coerce.number().int().positive().optional());
+const optionalEpochMs = z.preprocess(nullToUndefined, z.coerce.number().int().positive().optional());
+
+const binanceEarnListBody = z.object({
+  asset: optionalAsset,
+  productId: optionalProductId,
+  current: optionalPage,
+  size: optionalPage,
+  recvWindow,
+  apiKey,
+  apiSecret,
+});
+
+const binanceEarnSubscribeBody = z.object({
+  productId,
+  amount: positiveNumberString,
+  // Default true mirrors Binance: re-subscribe rewards automatically.
+  autoSubscribe: strictBoolean(true),
+  // SPOT | FUND | ALL — where the principal is debited from.
+  sourceAccount: z.preprocess(
+    nullToUndefined,
+    z.enum(["SPOT", "FUND", "ALL"]).optional(),
+  ),
+  recvWindow,
+  apiKey,
+  apiSecret,
+});
+
+const binanceEarnRedeemBody = z
+  .object({
+    productId,
+    // Either redeemAll=true OR an explicit amount must be provided.
+    redeemAll: strictBoolean(false),
+    amount: z.preprocess(nullToUndefined, positiveNumberString.optional()),
+    destAccount: z.preprocess(
+      nullToUndefined,
+      z.enum(["SPOT", "FUND", "ALL"]).optional(),
+    ),
+    recvWindow,
+    apiKey,
+    apiSecret,
+  })
+  .refine((d) => d.redeemAll === true || d.amount !== undefined, {
+    message: "either redeemAll=true or a positive amount is required",
+    path: ["amount"],
+  });
+
+const binanceEarnPositionBody = z.object({
+  asset: optionalAsset,
+  productId: optionalProductId,
+  current: optionalPage,
+  size: optionalPage,
+  recvWindow,
+  apiKey,
+  apiSecret,
+});
+
+const binanceEarnRewardsBody = z.object({
+  // Binance flexible rewardsRecord requires the reward type.
+  type: z.enum(["BONUS", "REALTIME", "REWARDS"]),
+  asset: optionalAsset,
+  productId: optionalProductId,
+  startTime: optionalEpochMs,
+  endTime: optionalEpochMs,
+  current: optionalPage,
+  size: optionalPage,
+  recvWindow,
+  apiKey,
+  apiSecret,
+});
+
 module.exports = {
   getAssetQuery,
   tokocryptoPlaceOrderBody,
@@ -168,4 +246,9 @@ module.exports = {
   binancePlaceLimitOrderBody,
   binanceCancelOrderBody,
   binanceOpenOrdersBody,
+  binanceEarnListBody,
+  binanceEarnSubscribeBody,
+  binanceEarnRedeemBody,
+  binanceEarnPositionBody,
+  binanceEarnRewardsBody,
 };
