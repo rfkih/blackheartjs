@@ -18,7 +18,7 @@ const errorHandler = require("./middleware/errorHandler");
 const assetRoutes = require("./routes/assetRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const earnRoutes = require("./routes/earnRoutes");
-const depositRoutes = require("./routes/deposits");
+const depositRoutes = require("./routes/depositRoutes");
 const healthRoutes = require("./routes/healthRoutes");
 
 const app = express();

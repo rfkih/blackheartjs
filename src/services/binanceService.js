@@ -247,8 +247,7 @@ async function depositHistory({ coin, startTime, limit, recvWindow, apiKey, apiS
   const params = { timestamp: await signedTimestamp(), recvWindow };
   if (coin) params.coin = String(coin).toUpperCase().trim();
   if (startTime !== undefined && startTime !== null) params.startTime = startTime;
-  // Binance caps deposit/hisrec at 1000 rows/page; default to the max.
-  params.limit = limit !== undefined && limit !== null ? limit : 1000;
+  if (limit !== undefined && limit !== null) params.limit = limit;
 
   const qs = signedQuery(params, apiSecret);
   const res = await client.get(`/sapi/v1/capital/deposit/hisrec?${qs}`, {
