@@ -31,6 +31,12 @@ const schema = z.object({
   // earn routes (list/position/rewards) are always available. Strict parse —
   // only the literal "true" enables it (avoids the Boolean("false")===true trap).
   SIMPLE_EARN_ENABLED: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
+
+  // Gates the full-balance hedge support routes (deposit-history). Disabled by
+  // default — the deposit-history route returns an empty array [] until this is
+  // explicitly enabled, so the feature ships dormant. Strict parse like
+  // SIMPLE_EARN_ENABLED (avoids the Boolean("false")===true trap).
+  FULL_BALANCE_ENABLED: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
 });
 
 const parsed = schema.safeParse(process.env);

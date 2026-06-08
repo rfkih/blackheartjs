@@ -237,6 +237,26 @@ async function simpleEarnFlexibleRewards({ type, asset, productId, startTime, en
   return handleResponse(res, { upstream: UPSTREAM });
 }
 
+// --- Deposit history --------------------------------------------------
+// Signed SAPI v1 read endpoint. Used by the full-balance hedge to derive
+// the deposit-time cost basis of pre-existing (adopted) BTC: each deposit
+// is valued at the BTCUSDT close at/just before its insertTime. Payload
+// goes on the signed query string; this is a GET (no JSON body) — Binance
+// signs the exact query it receives.
+async function depositHistory({ coin, startTime, limit, recvWindow, apiKey, apiSecret }) {
+  const params = { timestamp: await signedTimestamp(), recvWindow };
+  if (coin) params.coin = String(coin).toUpperCase().trim();
+  if (startTime !== undefined && startTime !== null) params.startTime = startTime;
+  // Binance caps deposit/hisrec at 1000 rows/page; default to the max.
+  params.limit = limit !== undefined && limit !== null ? limit : 1000;
+
+  const qs = signedQuery(params, apiSecret);
+  const res = await client.get(`/sapi/v1/capital/deposit/hisrec?${qs}`, {
+    headers: { "X-MBX-APIKEY": apiKey },
+  });
+  return handleResponse(res, { upstream: UPSTREAM });
+}
+
 module.exports = {
   getAsset,
   placeMarketOrder,
@@ -244,6 +264,7 @@ module.exports = {
   placeLimitOrder,
   cancelOrder,
   openOrders,
+  depositHistory,
   simpleEarnFlexibleList,
   simpleEarnFlexibleSubscribe,
   simpleEarnFlexibleRedeem,

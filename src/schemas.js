@@ -236,8 +236,25 @@ const binanceEarnRewardsBody = z.object({
   apiSecret,
 });
 
+// --- Binance deposit history ---
+const binanceDepositHistoryBody = z.object({
+  // coin is required — the cost-basis caller always scopes to one asset (BTC).
+  coin: z.string().trim().min(1).max(20),
+  // Optional epoch-ms lower bound; null-tolerant for Java callers.
+  startTime: optionalEpochMs,
+  // Binance caps at 1000 rows/page; default to the max when omitted.
+  limit: z.preprocess(
+    nullToUndefined,
+    z.coerce.number().int().positive().max(1000).default(1000),
+  ),
+  recvWindow,
+  apiKey,
+  apiSecret,
+});
+
 module.exports = {
   getAssetQuery,
+  binanceDepositHistoryBody,
   tokocryptoPlaceOrderBody,
   tokocryptoOrderDetailBody,
   binanceGetAssetBody,

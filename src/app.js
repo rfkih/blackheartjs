@@ -18,6 +18,7 @@ const errorHandler = require("./middleware/errorHandler");
 const assetRoutes = require("./routes/assetRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const earnRoutes = require("./routes/earnRoutes");
+const depositRoutes = require("./routes/deposits");
 const healthRoutes = require("./routes/healthRoutes");
 
 const app = express();
@@ -91,6 +92,7 @@ app.use("/api", apiLimiter);
 app.use("/api", assetRoutes);
 app.use("/api", orderRoutes);
 app.use("/api", earnRoutes);
+app.use("/api", depositRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
