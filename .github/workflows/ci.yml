@@ -3,6 +3,8 @@ name: CI
 on:
   push:
     branches: [master, main]
+    paths-ignore:
+      - '**/*.md'   # docs-only changes don't trigger a deploy
   pull_request:
   workflow_dispatch:
 
