@@ -166,3 +166,15 @@ exports.futuresExchangeInfoBinance = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.futuresIncomeBinance = async (req, res, next) => {
+  try {
+    const { symbol, incomeType, startTime, limit, recvWindow, apiKey, apiSecret } = req.body;
+    const data = await binanceFuturesService.futuresIncome({
+      symbol, incomeType, startTime, limit, recvWindow, apiKey, apiSecret,
+    });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};

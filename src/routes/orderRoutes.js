@@ -16,6 +16,7 @@ const {
   futuresPositionRiskBody,
   futuresPremiumIndexBody,
   futuresExchangeInfoBody,
+  futuresIncomeBody,
 } = require("../schemas");
 
 const router = express.Router();
@@ -97,6 +98,11 @@ router.post(
   "/exchange-info-futures",
   validate({ body: futuresExchangeInfoBody }),
   orderController.futuresExchangeInfoBinance,
+);
+router.post(
+  "/income-futures",
+  validate({ body: futuresIncomeBody }),
+  orderController.futuresIncomeBinance,
 );
 
 module.exports = router;

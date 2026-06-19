@@ -24,6 +24,7 @@ jest.mock("../src/services/binanceFuturesService", () => ({
   futuresPositionRisk: jest.fn(),
   premiumIndex: jest.fn(),
   futuresExchangeInfo: jest.fn(),
+  futuresIncome: jest.fn(),
 }));
 
 const app = require("../src/app");
@@ -107,5 +108,21 @@ describe("futures read endpoints", () => {
     expect(res.status).toBe(200);
     expect(res.body.symbols[0].symbol).toBe("BTCUSDT");
     expect(futures.futuresExchangeInfo).toHaveBeenCalled();
+  });
+
+  it("income-futures forwards FUNDING_FEE query and requires apiKey", async () => {
+    futures.futuresIncome.mockResolvedValue([{ symbol: "BTCUSDT", incomeType: "FUNDING_FEE", income: "0.12" }]);
+    const res = await request(app)
+      .post("/api/income-futures")
+      .send({ symbol: "BTCUSDT", incomeType: "FUNDING_FEE", startTime: 1, apiKey: KEY, apiSecret: SECRET });
+    expect(res.status).toBe(200);
+    expect(futures.futuresIncome).toHaveBeenCalledWith(
+      expect.objectContaining({ symbol: "BTCUSDT", incomeType: "FUNDING_FEE", startTime: 1 }),
+    );
+  });
+
+  it("income-futures rejects missing apiKey (400)", async () => {
+    const res = await request(app).post("/api/income-futures").send({ symbol: "BTCUSDT" });
+    expect(res.status).toBe(400);
   });
 });

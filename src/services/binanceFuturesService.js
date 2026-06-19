@@ -141,6 +141,22 @@ async function futuresExchangeInfo() {
   return handleResponse(res, { upstream: UPSTREAM });
 }
 
+// SIGNED — realized income history (FUNDING_FEE / COMMISSION / REALIZED_PNL …).
+// The carry funding-accrual loop sums FUNDING_FEE since the pair opened to track
+// the perp short's actual funding P&L. Returns [] when there's nothing in range.
+async function futuresIncome({ symbol, incomeType, startTime, limit, apiKey, apiSecret, recvWindow }) {
+  const params = { timestamp: await signedTimestamp(), recvWindow };
+  if (symbol) params.symbol = String(symbol).toUpperCase().trim();
+  if (incomeType) params.incomeType = incomeType;
+  if (startTime) params.startTime = startTime;
+  if (limit) params.limit = limit;
+  const qs = signedQuery(params, apiSecret);
+  const res = await client.get(`/fapi/v1/income?${qs}`, {
+    headers: { "X-MBX-APIKEY": apiKey },
+  });
+  return handleResponse(res, { upstream: UPSTREAM });
+}
+
 module.exports = {
   placeFuturesMarketOrder,
   futuresOrderDetail,
@@ -149,4 +165,5 @@ module.exports = {
   futuresPositionRisk,
   premiumIndex,
   futuresExchangeInfo,
+  futuresIncome,
 };

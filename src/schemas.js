@@ -316,6 +316,17 @@ const futuresPremiumIndexBody = z.object({ symbol: optionalSymbol });
 // API key. Symbol is accepted for parity but the upstream returns the full set.
 const futuresExchangeInfoBody = z.object({ symbol: optionalSymbol });
 
+// SIGNED — realized income history; carry funding accrual sums FUNDING_FEE.
+const futuresIncomeBody = z.object({
+  symbol: optionalSymbol,
+  incomeType: z.string().trim().min(1).max(32).optional(),
+  startTime: z.preprocess(nullToUndefined, z.coerce.number().int().positive().optional()),
+  limit: z.preprocess(nullToUndefined, z.coerce.number().int().positive().max(1000).optional()),
+  recvWindow,
+  apiKey,
+  apiSecret,
+});
+
 module.exports = {
   getAssetQuery,
   binanceDepositHistoryBody,
@@ -326,6 +337,7 @@ module.exports = {
   futuresPositionRiskBody,
   futuresPremiumIndexBody,
   futuresExchangeInfoBody,
+  futuresIncomeBody,
   tokocryptoPlaceOrderBody,
   tokocryptoOrderDetailBody,
   binanceGetAssetBody,
