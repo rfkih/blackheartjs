@@ -9,6 +9,12 @@ const {
   binancePlaceLimitOrderBody,
   binanceCancelOrderBody,
   binanceOpenOrdersBody,
+  futuresPlaceMarketOrderBody,
+  futuresOrderDetailBody,
+  futuresCancelOrderBody,
+  futuresAccountBody,
+  futuresPositionRiskBody,
+  futuresPremiumIndexBody,
 } = require("../schemas");
 
 const router = express.Router();
@@ -53,6 +59,38 @@ router.post(
   "/open-orders-binance",
   validate({ body: binanceOpenOrdersBody }),
   orderController.openOrdersBinance,
+);
+
+// --- Binance USDⓈ-M futures (perp leg for delta-neutral carry, Phase 1) ---
+router.post(
+  "/place-market-order-futures",
+  validate({ body: futuresPlaceMarketOrderBody }),
+  orderController.placeFuturesMarketOrderBinance,
+);
+router.post(
+  "/order-detail-futures",
+  validate({ body: futuresOrderDetailBody }),
+  orderController.futuresOrderDetailBinance,
+);
+router.post(
+  "/cancel-order-futures",
+  validate({ body: futuresCancelOrderBody }),
+  orderController.cancelFuturesOrderBinance,
+);
+router.post(
+  "/account-futures",
+  validate({ body: futuresAccountBody }),
+  orderController.futuresAccountBinance,
+);
+router.post(
+  "/position-risk-futures",
+  validate({ body: futuresPositionRiskBody }),
+  orderController.futuresPositionRiskBinance,
+);
+router.post(
+  "/premium-index-futures",
+  validate({ body: futuresPremiumIndexBody }),
+  orderController.futuresPremiumIndexBinance,
 );
 
 module.exports = router;

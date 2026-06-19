@@ -1,5 +1,6 @@
 const tokocryptoService = require("../services/tokocryptoService");
 const binanceService = require("../services/binanceService");
+const binanceFuturesService = require("../services/binanceFuturesService");
 
 exports.placeMarketOrder = async (req, res, next) => {
   try {
@@ -83,6 +84,74 @@ exports.openOrdersBinance = async (req, res, next) => {
     const data = await binanceService.openOrders({
       symbol, recvWindow, apiKey, apiSecret,
     });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// --- Binance USDⓈ-M futures (perp leg for delta-neutral carry, Phase 1) ---
+
+exports.placeFuturesMarketOrderBinance = async (req, res, next) => {
+  try {
+    const { symbol, side, quantity, reduceOnly, positionSide, newClientOrderId, recvWindow, apiKey, apiSecret } = req.body;
+    const data = await binanceFuturesService.placeFuturesMarketOrder({
+      symbol, side, quantity, reduceOnly, positionSide, newClientOrderId, recvWindow, apiKey, apiSecret,
+    });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.futuresOrderDetailBinance = async (req, res, next) => {
+  try {
+    const { symbol, orderId, origClientOrderId, recvWindow, apiKey, apiSecret } = req.body;
+    const data = await binanceFuturesService.futuresOrderDetail({
+      symbol, orderId, origClientOrderId, recvWindow, apiKey, apiSecret,
+    });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.cancelFuturesOrderBinance = async (req, res, next) => {
+  try {
+    const { symbol, orderId, origClientOrderId, recvWindow, apiKey, apiSecret } = req.body;
+    const data = await binanceFuturesService.cancelFuturesOrder({
+      symbol, orderId, origClientOrderId, recvWindow, apiKey, apiSecret,
+    });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.futuresAccountBinance = async (req, res, next) => {
+  try {
+    const { recvWindow, apiKey, apiSecret } = req.body;
+    const data = await binanceFuturesService.futuresAccount({ recvWindow, apiKey, apiSecret });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.futuresPositionRiskBinance = async (req, res, next) => {
+  try {
+    const { symbol, recvWindow, apiKey, apiSecret } = req.body;
+    const data = await binanceFuturesService.futuresPositionRisk({ symbol, recvWindow, apiKey, apiSecret });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.futuresPremiumIndexBinance = async (req, res, next) => {
+  try {
+    const { symbol } = req.body;
+    const data = await binanceFuturesService.premiumIndex({ symbol });
     res.json(data);
   } catch (err) {
     next(err);
