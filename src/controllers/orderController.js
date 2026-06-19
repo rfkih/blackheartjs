@@ -178,3 +178,15 @@ exports.futuresIncomeBinance = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.setFuturesLeverageBinance = async (req, res, next) => {
+  try {
+    const { symbol, leverage, recvWindow, apiKey, apiSecret } = req.body;
+    const data = await binanceFuturesService.setFuturesLeverage({
+      symbol, leverage, recvWindow, apiKey, apiSecret,
+    });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};

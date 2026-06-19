@@ -67,6 +67,23 @@ async function placeFuturesMarketOrder({ symbol, side, quantity, reduceOnly, pos
   return handleResponse(res, { upstream: UPSTREAM });
 }
 
+// Set initial leverage for a symbol (signed). The carry perp leg sets a
+// conservative leverage (e.g. 2×) BEFORE opening — never trade at the account
+// default (20× on testnet), which liquidates a short on a modest basis spike.
+async function setFuturesLeverage({ symbol, leverage, apiKey, apiSecret, recvWindow }) {
+  const params = {
+    symbol: String(symbol).toUpperCase().trim(),
+    leverage,
+    recvWindow,
+    timestamp: await signedTimestamp(),
+  };
+  const qs = signedQuery(params, apiSecret);
+  const res = await client.post(`/fapi/v1/leverage?${qs}`, null, {
+    headers: { "X-MBX-APIKEY": apiKey },
+  });
+  return handleResponse(res, { upstream: UPSTREAM });
+}
+
 async function futuresOrderDetail({ orderId, origClientOrderId, symbol, apiKey, apiSecret, recvWindow }) {
   const params = {
     symbol: String(symbol).toUpperCase().trim(),
@@ -159,6 +176,7 @@ async function futuresIncome({ symbol, incomeType, startTime, limit, apiKey, api
 
 module.exports = {
   placeFuturesMarketOrder,
+  setFuturesLeverage,
   futuresOrderDetail,
   cancelFuturesOrder,
   futuresAccount,

@@ -25,6 +25,7 @@ jest.mock("../src/services/binanceFuturesService", () => ({
   premiumIndex: jest.fn(),
   futuresExchangeInfo: jest.fn(),
   futuresIncome: jest.fn(),
+  setFuturesLeverage: jest.fn(),
 }));
 
 const app = require("../src/app");
@@ -123,6 +124,24 @@ describe("futures read endpoints", () => {
 
   it("income-futures rejects missing apiKey (400)", async () => {
     const res = await request(app).post("/api/income-futures").send({ symbol: "BTCUSDT" });
+    expect(res.status).toBe(400);
+  });
+
+  it("leverage-futures forwards a conservative leverage", async () => {
+    futures.setFuturesLeverage.mockResolvedValue({ symbol: "BTCUSDT", leverage: 2 });
+    const res = await request(app)
+      .post("/api/leverage-futures")
+      .send({ symbol: "BTCUSDT", leverage: 2, apiKey: KEY, apiSecret: SECRET });
+    expect(res.status).toBe(200);
+    expect(futures.setFuturesLeverage).toHaveBeenCalledWith(
+      expect.objectContaining({ symbol: "BTCUSDT", leverage: 2 }),
+    );
+  });
+
+  it("leverage-futures rejects out-of-range leverage (400)", async () => {
+    const res = await request(app)
+      .post("/api/leverage-futures")
+      .send({ symbol: "BTCUSDT", leverage: 999, apiKey: KEY, apiSecret: SECRET });
     expect(res.status).toBe(400);
   });
 });

@@ -316,6 +316,16 @@ const futuresPremiumIndexBody = z.object({ symbol: optionalSymbol });
 // API key. Symbol is accepted for parity but the upstream returns the full set.
 const futuresExchangeInfoBody = z.object({ symbol: optionalSymbol });
 
+// SIGNED — set initial leverage (1..125) for a symbol. Carry sets a conservative
+// value before opening the perp leg.
+const futuresLeverageBody = z.object({
+  symbol,
+  leverage: z.coerce.number().int().min(1).max(125),
+  recvWindow,
+  apiKey,
+  apiSecret,
+});
+
 // SIGNED — realized income history; carry funding accrual sums FUNDING_FEE.
 const futuresIncomeBody = z.object({
   symbol: optionalSymbol,
@@ -338,6 +348,7 @@ module.exports = {
   futuresPremiumIndexBody,
   futuresExchangeInfoBody,
   futuresIncomeBody,
+  futuresLeverageBody,
   tokocryptoPlaceOrderBody,
   tokocryptoOrderDetailBody,
   binanceGetAssetBody,
