@@ -312,6 +312,10 @@ const futuresPositionRiskBody = z.object({
 // PUBLIC — mark price + funding; no API key required.
 const futuresPremiumIndexBody = z.object({ symbol: optionalSymbol });
 
+// PUBLIC — full futures contract specs (LOT_SIZE/MIN_NOTIONAL/precision); no
+// API key. Symbol is accepted for parity but the upstream returns the full set.
+const futuresExchangeInfoBody = z.object({ symbol: optionalSymbol });
+
 module.exports = {
   getAssetQuery,
   binanceDepositHistoryBody,
@@ -321,6 +325,7 @@ module.exports = {
   futuresAccountBody,
   futuresPositionRiskBody,
   futuresPremiumIndexBody,
+  futuresExchangeInfoBody,
   tokocryptoPlaceOrderBody,
   tokocryptoOrderDetailBody,
   binanceGetAssetBody,

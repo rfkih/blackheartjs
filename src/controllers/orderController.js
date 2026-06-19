@@ -157,3 +157,12 @@ exports.futuresPremiumIndexBinance = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.futuresExchangeInfoBinance = async (req, res, next) => {
+  try {
+    const data = await binanceFuturesService.futuresExchangeInfo();
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};

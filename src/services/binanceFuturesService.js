@@ -130,6 +130,17 @@ async function premiumIndex({ symbol }) {
   return handleResponse(res, { upstream: UPSTREAM });
 }
 
+// PUBLIC (no signing): contract specs (LOT_SIZE step/minQty, MIN_NOTIONAL,
+// quantityPrecision) per symbol. The carry perp leg sizes off these — and they
+// DIFFER between testnet and prod (e.g. BTCUSDT step 0.0001 on testnet vs 0.001
+// on prod), so the leg must read them from whatever fapi this gateway targets,
+// NOT a hard-coded table. The futures endpoint has no per-symbol filter, so we
+// fetch the full set; the caller (Java FuturesContractService) caches + indexes.
+async function futuresExchangeInfo() {
+  const res = await client.get("/fapi/v1/exchangeInfo");
+  return handleResponse(res, { upstream: UPSTREAM });
+}
+
 module.exports = {
   placeFuturesMarketOrder,
   futuresOrderDetail,
@@ -137,4 +148,5 @@ module.exports = {
   futuresAccount,
   futuresPositionRisk,
   premiumIndex,
+  futuresExchangeInfo,
 };

@@ -23,6 +23,7 @@ jest.mock("../src/services/binanceFuturesService", () => ({
   futuresAccount: jest.fn(),
   futuresPositionRisk: jest.fn(),
   premiumIndex: jest.fn(),
+  futuresExchangeInfo: jest.fn(),
 }));
 
 const app = require("../src/app");
@@ -96,5 +97,15 @@ describe("futures read endpoints", () => {
   it("account-futures requires apiKey/apiSecret (400 without)", async () => {
     const res = await request(app).post("/api/account-futures").send({});
     expect(res.status).toBe(400);
+  });
+
+  it("exchange-info-futures is public and returns contract specs", async () => {
+    futures.futuresExchangeInfo.mockResolvedValue({
+      symbols: [{ symbol: "BTCUSDT", quantityPrecision: 3, filters: [] }],
+    });
+    const res = await request(app).post("/api/exchange-info-futures").send({});
+    expect(res.status).toBe(200);
+    expect(res.body.symbols[0].symbol).toBe("BTCUSDT");
+    expect(futures.futuresExchangeInfo).toHaveBeenCalled();
   });
 });
