@@ -17,6 +17,10 @@ const schema = z.object({
 
   TOKOCRYPTO_BASE_URL: z.string().url().default("https://www.tokocrypto.com"),
   BINANCE_BASE_URL: z.string().url().default("https://api.binance.com"),
+  // USDⓈ-M futures (perp) base URL for the delta-neutral carry perp leg.
+  // Prod: https://fapi.binance.com. TESTNET (Phase-1, no real capital):
+  // https://testnet.binancefuture.com — set via env on the testnet deployment.
+  BINANCE_FUTURES_BASE_URL: z.string().url().default("https://fapi.binance.com"),
 
   HTTP_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
   HTTP_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),

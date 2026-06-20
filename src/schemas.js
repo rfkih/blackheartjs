@@ -252,9 +252,103 @@ const binanceDepositHistoryBody = z.object({
   apiSecret,
 });
 
+// --- Binance USDⓈ-M futures (perp leg for delta-neutral carry, Phase 1) ---
+const optionalOrderId = z.preprocess(
+  nullToUndefined,
+  z.union([z.string(), z.number()]).transform(String).optional(),
+);
+const optionalSymbol = z.preprocess(
+  (v) => (v === null || v === "" ? undefined : v),
+  symbol.optional(),
+);
+const optionalClientOrderId = z.preprocess(
+  nullToUndefined,
+  z.string().trim().min(1).max(36).optional(),
+);
+
+const futuresPlaceMarketOrderBody = z.object({
+  symbol,
+  side: z.enum(["BUY", "SELL", "buy", "sell"]).transform((v) => v.toUpperCase()),
+  // futures MARKET orders size in base units (quantity) for BOTH sides.
+  quantity: positiveNumberString,
+  // reduceOnly closes/reduces without flipping into the opposite side.
+  reduceOnly: strictBoolean(false),
+  // only meaningful in hedge mode; one-way mode omits it.
+  positionSide: z.preprocess(
+    nullToUndefined,
+    z.enum(["BOTH", "LONG", "SHORT"]).optional(),
+  ),
+  newClientOrderId: optionalClientOrderId,
+  recvWindow,
+  apiKey,
+  apiSecret,
+});
+
+const futuresOrderDetailBody = z
+  .object({
+    symbol,
+    orderId: optionalOrderId,
+    origClientOrderId: optionalClientOrderId,
+    recvWindow,
+    apiKey,
+    apiSecret,
+  })
+  .refine((d) => d.orderId !== undefined || d.origClientOrderId !== undefined, {
+    message: "either orderId or origClientOrderId is required",
+    path: ["orderId"],
+  });
+
+const futuresCancelOrderBody = futuresOrderDetailBody;
+
+const futuresAccountBody = z.object({ recvWindow, apiKey, apiSecret });
+
+const futuresPositionRiskBody = z.object({
+  symbol: optionalSymbol,
+  recvWindow,
+  apiKey,
+  apiSecret,
+});
+
+// PUBLIC — mark price + funding; no API key required.
+const futuresPremiumIndexBody = z.object({ symbol: optionalSymbol });
+
+// PUBLIC — full futures contract specs (LOT_SIZE/MIN_NOTIONAL/precision); no
+// API key. Symbol is accepted for parity but the upstream returns the full set.
+const futuresExchangeInfoBody = z.object({ symbol: optionalSymbol });
+
+// SIGNED — set initial leverage (1..125) for a symbol. Carry sets a conservative
+// value before opening the perp leg.
+const futuresLeverageBody = z.object({
+  symbol,
+  leverage: z.coerce.number().int().min(1).max(125),
+  recvWindow,
+  apiKey,
+  apiSecret,
+});
+
+// SIGNED — realized income history; carry funding accrual sums FUNDING_FEE.
+const futuresIncomeBody = z.object({
+  symbol: optionalSymbol,
+  incomeType: z.string().trim().min(1).max(32).optional(),
+  startTime: z.preprocess(nullToUndefined, z.coerce.number().int().positive().optional()),
+  limit: z.preprocess(nullToUndefined, z.coerce.number().int().positive().max(1000).optional()),
+  recvWindow,
+  apiKey,
+  apiSecret,
+});
+
 module.exports = {
   getAssetQuery,
   binanceDepositHistoryBody,
+  futuresPlaceMarketOrderBody,
+  futuresOrderDetailBody,
+  futuresCancelOrderBody,
+  futuresAccountBody,
+  futuresPositionRiskBody,
+  futuresPremiumIndexBody,
+  futuresExchangeInfoBody,
+  futuresIncomeBody,
+  futuresLeverageBody,
   tokocryptoPlaceOrderBody,
   tokocryptoOrderDetailBody,
   binanceGetAssetBody,
