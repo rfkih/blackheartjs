@@ -190,3 +190,15 @@ exports.setFuturesLeverageBinance = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.setFuturesMarginTypeBinance = async (req, res, next) => {
+  try {
+    const { symbol, marginType, recvWindow, apiKey, apiSecret } = req.body;
+    const data = await binanceFuturesService.setFuturesMarginType({
+      symbol, marginType, recvWindow, apiKey, apiSecret,
+    });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};

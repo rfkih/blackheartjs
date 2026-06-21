@@ -326,6 +326,16 @@ const futuresLeverageBody = z.object({
   apiSecret,
 });
 
+// SIGNED — set margin type (ISOLATED/CROSSED) for a symbol. Audit 2026-06-21 (#1): carry sets
+// ISOLATED before opening so positionRisk returns a per-position liquidationPrice for the guard.
+const futuresMarginTypeBody = z.object({
+  symbol,
+  marginType: z.enum(["ISOLATED", "CROSSED"]),
+  recvWindow,
+  apiKey,
+  apiSecret,
+});
+
 // SIGNED — realized income history; carry funding accrual sums FUNDING_FEE.
 const futuresIncomeBody = z.object({
   symbol: optionalSymbol,
@@ -349,6 +359,7 @@ module.exports = {
   futuresExchangeInfoBody,
   futuresIncomeBody,
   futuresLeverageBody,
+  futuresMarginTypeBody,
   tokocryptoPlaceOrderBody,
   tokocryptoOrderDetailBody,
   binanceGetAssetBody,

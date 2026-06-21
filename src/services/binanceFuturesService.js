@@ -84,6 +84,27 @@ async function setFuturesLeverage({ symbol, leverage, apiKey, apiSecret, recvWin
   return handleResponse(res, { upstream: UPSTREAM });
 }
 
+// Set margin type (ISOLATED/CROSSED) for a symbol (signed). Audit 2026-06-21 (#1): the carry perp
+// leg sets ISOLATED before opening so /fapi positionRisk returns a per-position liquidationPrice for
+// the margin guard (CROSS returns 0, which blinds it). Binance -4046 "No need to change margin type"
+// means it is already set — treat that as success so a re-open stays idempotent.
+async function setFuturesMarginType({ symbol, marginType, apiKey, apiSecret, recvWindow }) {
+  const params = {
+    symbol: String(symbol).toUpperCase().trim(),
+    marginType: String(marginType).toUpperCase().trim(),
+    recvWindow,
+    timestamp: await signedTimestamp(),
+  };
+  const qs = signedQuery(params, apiSecret);
+  const res = await client.post(`/fapi/v1/marginType?${qs}`, null, {
+    headers: { "X-MBX-APIKEY": apiKey },
+  });
+  if (res && res.data && res.data.code === -4046) {
+    return { code: -4046, msg: "No need to change margin type", alreadySet: true };
+  }
+  return handleResponse(res, { upstream: UPSTREAM });
+}
+
 async function futuresOrderDetail({ orderId, origClientOrderId, symbol, apiKey, apiSecret, recvWindow }) {
   const params = {
     symbol: String(symbol).toUpperCase().trim(),
@@ -177,6 +198,7 @@ async function futuresIncome({ symbol, incomeType, startTime, limit, apiKey, api
 module.exports = {
   placeFuturesMarketOrder,
   setFuturesLeverage,
+  setFuturesMarginType,
   futuresOrderDetail,
   cancelFuturesOrder,
   futuresAccount,
