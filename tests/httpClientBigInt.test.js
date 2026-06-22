@@ -40,4 +40,15 @@ describe("parseBigIntSafe — int64 precision preservation", () => {
   test("strict-parses genuine non-JSON to a throw (handled by caller)", () => {
     expect(() => parseBigIntSafe("<html>error</html>")).toThrow();
   });
+
+  test("keeps a safe 16-digit integer (below 2^53) as a number, not a string", () => {
+    const out = parseBigIntSafe('{"micros":9007199254740990}');
+    expect(out.micros).toBe(9007199254740990);
+    expect(typeof out.micros).toBe("number");
+  });
+
+  test("stringifies an integer just above 2^53 exactly", () => {
+    const out = parseBigIntSafe('{"id":9007199254740993}');
+    expect(out.id).toBe("9007199254740993");
+  });
 });

@@ -19,7 +19,12 @@ const BIG_INT_LITERAL = /([:[,]\s*)(-?\d{16,})(?=\s*[,}\]])/g;
 
 function parseBigIntSafe(text) {
   if (typeof text !== "string" || text.length === 0) return text;
-  const quoted = text.replace(BIG_INT_LITERAL, '$1"$2"');
+  // The regex only finds >=16-digit CANDIDATES; quote a value ONLY when it actually
+  // overflows Number.MAX_SAFE_INTEGER (2^53-1). Safe 16-digit values (e.g. a
+  // microsecond timestamp ~1.7e15) stay JS numbers; true int64 IDs become exact strings.
+  const quoted = text.replace(BIG_INT_LITERAL, (full, pre, num) =>
+    Number.isSafeInteger(Number(num)) ? full : `${pre}"${num}"`,
+  );
   try {
     return JSON.parse(quoted);
   } catch {
