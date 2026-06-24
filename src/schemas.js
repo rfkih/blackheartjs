@@ -72,6 +72,15 @@ const binancePlaceOrderBody = z.object({
   symbol,
   side: z.enum(["BUY", "SELL", "buy", "sell"]).transform((v) => v.toUpperCase()),
   amount: positiveNumberString,
+  // Optional client-supplied id for idempotent placement (maps to Binance
+  // newClientOrderId): a retried/duplicate market order with the same id is
+  // rejected upstream instead of executing a second fill. Null-tolerant —
+  // Java callers that leave the field unset emit null. Mirrors the spot
+  // LIMIT route and the futures market route.
+  newClientOrderId: z.preprocess(
+    nullToUndefined,
+    z.string().trim().min(1).max(36).optional(),
+  ),
   recvWindow,
   apiKey,
   apiSecret,

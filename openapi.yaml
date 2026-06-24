@@ -107,6 +107,9 @@ paths:
                 symbol: { type: string }
                 side: { type: string, enum: [BUY, SELL] }
                 amount: { type: string }
+                newClientOrderId:
+                  type: string
+                  description: Optional deterministic id for idempotent placement; a retried order with the same id is deduped by Binance instead of executing a second fill.
                 recvWindow: { type: integer, default: 5000 }
                 apiKey: { type: string }
                 apiSecret: { type: string }

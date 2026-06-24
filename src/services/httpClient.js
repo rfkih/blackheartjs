@@ -53,11 +53,17 @@ function createClient(baseURL) {
   axiosRetry(client, {
     retries: HTTP_MAX_RETRIES,
     retryDelay: axiosRetry.exponentialDelay,
-    retryCondition: (error) => {
-      if (axiosRetry.isNetworkOrIdempotentRequestError(error)) return true;
-      const status = error.response?.status;
-      return status === 429 || (status >= 500 && status <= 599);
-    },
+    // NEVER auto-retry a non-idempotent order POST. On a transport reset axios
+    // blindly re-sends the request — for /api/v3/order or /fapi/v1/order that
+    // means a market order can execute a SECOND time (the first may have filled
+    // upstream; only the response was lost), doubling notional and leaving a
+    // naked leg in the delta-neutral carry book. `isSafeRequestError` retries
+    // ONLY safe methods (GET/HEAD/OPTIONS) on a retryable error (network error,
+    // 429, or 5xx) — so read-only GETs (account, positionRisk, premiumIndex,
+    // exchangeInfo, income, order-detail, openOrders) still retry, while every
+    // order-placement POST is left for the caller to reconcile idempotently
+    // (a deterministic newClientOrderId makes a manual re-send a Binance no-op).
+    retryCondition: (error) => axiosRetry.isSafeRequestError(error),
     onRetry: (count, error, config) => {
       logger.warn(
         { attempt: count, method: config.method, url: config.url, err: error.message },

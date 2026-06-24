@@ -63,4 +63,34 @@ describe("happy path", () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ orderId: "1" });
   });
+
+  it("forwards newClientOrderId on a Binance spot market order", async () => {
+    binance.placeMarketOrder.mockResolvedValue({ orderId: 42 });
+    const res = await request(app)
+      .post("/api/place-market-order-binance")
+      .send({
+        symbol: "BTCUSDT",
+        side: "BUY",
+        amount: "10",
+        newClientOrderId: "carry-spot-abc123",
+        apiKey: "k",
+        apiSecret: "s",
+      });
+    expect(res.status).toBe(200);
+    expect(binance.placeMarketOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ newClientOrderId: "carry-spot-abc123" }),
+    );
+  });
+
+  it("spot market order without newClientOrderId stays backward-compatible", async () => {
+    binance.placeMarketOrder.mockResolvedValue({ orderId: 43 });
+    const res = await request(app)
+      .post("/api/place-market-order-binance")
+      .send({ symbol: "BTCUSDT", side: "SELL", amount: "0.01", apiKey: "k", apiSecret: "s" });
+    expect(res.status).toBe(200);
+    // Null-tolerant Java callers may emit newClientOrderId:null; it must arrive undefined.
+    expect(binance.placeMarketOrder).toHaveBeenCalledWith(
+      expect.objectContaining({ newClientOrderId: undefined }),
+    );
+  });
 });

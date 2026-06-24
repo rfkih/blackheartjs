@@ -44,7 +44,7 @@ async function getAsset({ asset, recvWindow, apiKey, apiSecret }) {
   return handleResponse(res, { upstream: UPSTREAM });
 }
 
-async function placeMarketOrder({ symbol, side, amount, apiKey, apiSecret, recvWindow }) {
+async function placeMarketOrder({ symbol, side, amount, newClientOrderId, apiKey, apiSecret, recvWindow }) {
   const normalizedSide = String(side).toUpperCase().trim();
   if (normalizedSide !== "BUY" && normalizedSide !== "SELL") {
     const { ValidationError } = require("../errors/AppError");
@@ -60,6 +60,9 @@ async function placeMarketOrder({ symbol, side, amount, apiKey, apiSecret, recvW
   };
   if (normalizedSide === "BUY") params.quoteOrderQty = amount;
   else params.quantity = amount;
+  // Optional deterministic id so a retried/duplicate order is deduped by Binance
+  // (newClientOrderId) instead of executing a second fill. Mirrors placeLimitOrder.
+  if (newClientOrderId) params.newClientOrderId = newClientOrderId;
 
   const qs = signedQuery(params, apiSecret);
   const res = await client.post(`/api/v3/order?${qs}`, null, {
