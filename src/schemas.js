@@ -68,6 +68,17 @@ const binanceGetAssetBody = z.object({
   apiSecret,
 });
 
+// Universal transfer between SPOT and USDⓈ-M FUTURES wallets. type is constrained to
+// the two carry directions only (no withdrawal / cross-account / margin transfer types).
+const binanceTransferBody = z.object({
+  type: z.enum(["MAIN_UMFUTURE", "UMFUTURE_MAIN"]),
+  asset: z.string().trim().min(1).max(20).default("USDT"),
+  amount: positiveNumberString,
+  recvWindow,
+  apiKey,
+  apiSecret,
+});
+
 const binancePlaceOrderBody = z.object({
   symbol,
   side: z.enum(["BUY", "SELL", "buy", "sell"]).transform((v) => v.toUpperCase()),
@@ -372,6 +383,7 @@ module.exports = {
   tokocryptoPlaceOrderBody,
   tokocryptoOrderDetailBody,
   binanceGetAssetBody,
+  binanceTransferBody,
   binancePlaceOrderBody,
   binanceOrderDetailBody,
   binancePlaceLimitOrderBody,

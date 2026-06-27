@@ -44,6 +44,25 @@ async function getAsset({ asset, recvWindow, apiKey, apiSecret }) {
   return handleResponse(res, { upstream: UPSTREAM });
 }
 
+// Universal transfer between the account's SPOT and USDⓈ-M FUTURES wallets
+// (Binance /sapi/v1/asset/transfer). `type` is MAIN_UMFUTURE (spot→futures) or
+// UMFUTURE_MAIN (futures→spot). Used by the carry book's auto wallet-split so the
+// operator funds one wallet and the perp-leg margin is positioned automatically.
+async function transfer({ type, asset, amount, recvWindow, apiKey, apiSecret }) {
+  const params = {
+    type,
+    asset,
+    amount,
+    recvWindow,
+    timestamp: await signedTimestamp(),
+  };
+  const qs = signedQuery(params, apiSecret);
+  const res = await client.post(`/sapi/v1/asset/transfer?${qs}`, null, {
+    headers: { "X-MBX-APIKEY": apiKey },
+  });
+  return handleResponse(res, { upstream: UPSTREAM });
+}
+
 async function placeMarketOrder({ symbol, side, amount, newClientOrderId, apiKey, apiSecret, recvWindow }) {
   const normalizedSide = String(side).toUpperCase().trim();
   if (normalizedSide !== "BUY" && normalizedSide !== "SELL") {
@@ -261,6 +280,7 @@ async function depositHistory({ coin, startTime, limit, recvWindow, apiKey, apiS
 
 module.exports = {
   getAsset,
+  transfer,
   placeMarketOrder,
   orderDetail,
   placeLimitOrder,

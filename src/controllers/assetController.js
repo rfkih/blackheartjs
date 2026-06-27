@@ -20,3 +20,13 @@ exports.getAssetBinance = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.transferBinance = async (req, res, next) => {
+  try {
+    const { type, asset, amount, recvWindow, apiKey, apiSecret } = req.body;
+    const data = await binanceService.transfer({ type, asset, amount, recvWindow, apiKey, apiSecret });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+};
