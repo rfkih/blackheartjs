@@ -116,16 +116,22 @@ paths:
       responses: { "200": { description: OK } }
   /api/order-detail-binance:
     post:
-      summary: Binance order detail
+      summary: Binance order detail (by orderId or origClientOrderId)
+      description: >
+        Either orderId or origClientOrderId is required (orderId wins when both
+        are sent). origClientOrderId lookup is the trading JVM's C2b
+        reconcile-on-timeout path — it finds an order placed with a
+        deterministic newClientOrderId whose response was lost in transit.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [orderId, symbol, apiKey, apiSecret]
+              required: [symbol, apiKey, apiSecret]
               properties:
                 orderId: { type: string }
+                origClientOrderId: { type: string, maxLength: 36 }
                 symbol: { type: string }
                 recvWindow: { type: integer, default: 5000 }
                 apiKey: { type: string }

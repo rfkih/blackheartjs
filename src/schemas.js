@@ -97,13 +97,32 @@ const binancePlaceOrderBody = z.object({
   apiSecret,
 });
 
-const binanceOrderDetailBody = z.object({
-  orderId: z.union([z.string(), z.number()]).transform(String),
-  symbol,
-  recvWindow,
-  apiKey,
-  apiSecret,
-});
+const binanceOrderDetailBody = z
+  .object({
+    // Either orderId OR origClientOrderId must be present; Binance's
+    // GET /api/v3/order accepts either (orderId wins when both are sent).
+    // origClientOrderId is the C2b reconcile path: after an ambiguous order
+    // failure (timeout/5xx) the JVM never learned the exchange orderId and
+    // queries by its deterministic newClientOrderId instead. Both fields are
+    // null-tolerant — Java callers emit null for whichever they don't set.
+    // Mirrors binanceCancelOrderBody.
+    orderId: z.preprocess(
+      nullToUndefined,
+      z.union([z.string(), z.number()]).transform(String).optional(),
+    ),
+    origClientOrderId: z.preprocess(
+      nullToUndefined,
+      z.string().trim().min(1).max(36).optional(),
+    ),
+    symbol,
+    recvWindow,
+    apiKey,
+    apiSecret,
+  })
+  .refine((d) => d.orderId || d.origClientOrderId, {
+    message: "either orderId or origClientOrderId is required",
+    path: ["orderId"],
+  });
 
 // Null-tolerant: Java side emits null when postOnly=true (the gateway
 // strips timeInForce in that branch anyway). Preprocess null → undefined

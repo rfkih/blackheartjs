@@ -90,13 +90,18 @@ async function placeMarketOrder({ symbol, side, amount, newClientOrderId, apiKey
   return handleResponse(res, { upstream: UPSTREAM });
 }
 
-async function orderDetail({ orderId, symbol, recvWindow, apiKey, apiSecret }) {
+async function orderDetail({ orderId, origClientOrderId, symbol, recvWindow, apiKey, apiSecret }) {
   const params = {
-    orderId,
     symbol: String(symbol).toUpperCase().trim(),
     timestamp: await signedTimestamp(),
     recvWindow,
   };
+  // Binance accepts either id; orderId takes precedence when both are sent.
+  // origClientOrderId is how the JVM's C2b reconcile finds an order it placed
+  // with a deterministic newClientOrderId but whose response was lost in transit.
+  if (orderId) params.orderId = orderId;
+  if (origClientOrderId) params.origClientOrderId = origClientOrderId;
+
   const qs = signedQuery(params, apiSecret);
   const res = await client.get(`/api/v3/order?${qs}`, {
     headers: { "X-MBX-APIKEY": apiKey },

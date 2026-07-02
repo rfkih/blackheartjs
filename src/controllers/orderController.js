@@ -40,9 +40,9 @@ exports.placeMarketOrderBinance = async (req, res, next) => {
 
 exports.orderDetailBinance = async (req, res, next) => {
   try {
-    const { orderId, symbol, recvWindow, apiKey, apiSecret } = req.body;
+    const { orderId, origClientOrderId, symbol, recvWindow, apiKey, apiSecret } = req.body;
     const data = await binanceService.orderDetail({
-      orderId, symbol, recvWindow, apiKey, apiSecret,
+      orderId, origClientOrderId, symbol, recvWindow, apiKey, apiSecret,
     });
     res.json(data);
   } catch (err) {

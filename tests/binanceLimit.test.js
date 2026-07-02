@@ -357,6 +357,88 @@ describe("POST /api/cancel-order-binance", () => {
   });
 });
 
+describe("POST /api/order-detail-binance", () => {
+  it("forwards a lookup by orderId (pre-C2b shape unchanged)", async () => {
+    binance.orderDetail.mockResolvedValue({ orderId: 7, status: "FILLED" });
+    const res = await request(app)
+      .post("/api/order-detail-binance")
+      .send({
+        symbol: "BTCUSDT",
+        orderId: "7",
+        apiKey: VALID_KEY,
+        apiSecret: VALID_SECRET,
+      });
+    expect(res.status).toBe(200);
+    expect(binance.orderDetail).toHaveBeenCalledWith(
+      expect.objectContaining({ symbol: "BTCUSDT", orderId: "7" }),
+    );
+  });
+
+  // C2b reconcile path: the JVM never learned the exchange orderId (the order
+  // response was lost in transit) and queries by its deterministic client id.
+  it("forwards a lookup by origClientOrderId only", async () => {
+    binance.orderDetail.mockResolvedValue({ orderId: 8, status: "FILLED" });
+    const res = await request(app)
+      .post("/api/order-detail-binance")
+      .send({
+        symbol: "BTCUSDT",
+        origClientOrderId: "bh0123456789abcdef0123456789abcd",
+        apiKey: VALID_KEY,
+        apiSecret: VALID_SECRET,
+      });
+    expect(res.status).toBe(200);
+    expect(binance.orderDetail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        origClientOrderId: "bh0123456789abcdef0123456789abcd",
+        orderId: undefined,
+      }),
+    );
+  });
+
+  // Wire-format regression: Java emits null for whichever id is unset.
+  it("accepts null orderId when origClientOrderId is set", async () => {
+    binance.orderDetail.mockResolvedValue({ status: "FILLED" });
+    const res = await request(app)
+      .post("/api/order-detail-binance")
+      .send({
+        symbol: "BTCUSDT",
+        orderId: null,
+        origClientOrderId: "bh-x",
+        apiKey: VALID_KEY,
+        apiSecret: VALID_SECRET,
+      });
+    expect(res.status).toBe(200);
+    expect(binance.orderDetail.mock.calls[0][0].origClientOrderId).toBe("bh-x");
+    expect(binance.orderDetail.mock.calls[0][0].orderId).toBeUndefined();
+  });
+
+  it("rejects when neither orderId nor origClientOrderId present", async () => {
+    const res = await request(app)
+      .post("/api/order-detail-binance")
+      .send({
+        symbol: "BTCUSDT",
+        apiKey: VALID_KEY,
+        apiSecret: VALID_SECRET,
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("VALIDATION_ERROR");
+    expect(binance.orderDetail).not.toHaveBeenCalled();
+  });
+
+  it("rejects an over-long origClientOrderId (>36 chars)", async () => {
+    const res = await request(app)
+      .post("/api/order-detail-binance")
+      .send({
+        symbol: "BTCUSDT",
+        origClientOrderId: "x".repeat(37),
+        apiKey: VALID_KEY,
+        apiSecret: VALID_SECRET,
+      });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("VALIDATION_ERROR");
+  });
+});
+
 describe("POST /api/open-orders-binance", () => {
   it("forwards with optional symbol", async () => {
     binance.openOrders.mockResolvedValue([{ orderId: 1 }]);
